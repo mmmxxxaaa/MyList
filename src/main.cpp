@@ -4,7 +4,7 @@
 int main()
 {
     List list = {};
-    ListCtorWithSpecifiedCapacity(&list, 10);
+    ListCtorWithSpecifiedCapacity(&list, 7);
 
     // список: 10 -> 20 -> 30 -> 40
     ListInsertAfter(&list, 0, 10);

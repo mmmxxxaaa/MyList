@@ -5,6 +5,8 @@
 
 static int IsElementFree(List* list, int index)
 {
+    assert(list);
+
     if (index < 0 || index >= list->capacity)
         return 0;
 
@@ -33,8 +35,8 @@ ListErrorType ListCtorWithSpecifiedCapacity(List* ptr_list_struct, int capacity)
 
     // инициализация poisonа на нулевом индексе
     ptr_list_struct->array[0].data = kPoison;
-    ptr_list_struct->array[0].next = -1;
-    ptr_list_struct->array[0].prev = -1;
+    ptr_list_struct->array[0].next = 0; //FIXME
+    ptr_list_struct->array[0].prev = 0;
 
     // инициализация остальных элементов как свободных
     for (int i = 1; i < capacity; i++)
@@ -44,8 +46,10 @@ ListErrorType ListCtorWithSpecifiedCapacity(List* ptr_list_struct, int capacity)
         ptr_list_struct->array[i].prev = -1;
     }
 
-    ptr_list_struct->head = -1;  // когда список пуст, HEAD = -1
-    ptr_list_struct->tail = -1;  // когда список пуст, TAIL = -1
+    // ptr_list_struct->head = -1;  // когда список пуст, HEAD = -1
+    // ptr_list_struct->tail = -1;  // когда список пуст, TAIL = -1
+
+
     ptr_list_struct->free = 1;   // свободные элементы начинаются с индекса 1
 
     return LIST_ERROR_NO;
@@ -68,7 +72,7 @@ ListErrorType ListInsertAfter(List* list, int target_index, int value) //FIXME �
     if (target_index < 0 || target_index >= list->capacity)
         return LIST_INVALID_INDEX;
 
-    if (IsElementFree(list, target_index) && target_index != 0)
+    if (IsElementFree(list, target_index) && target_index != 0) // FIXME цикл есть или нет?
         return LIST_INVALID_INDEX;
 
     if (list->free == -1)
@@ -79,40 +83,46 @@ ListErrorType ListInsertAfter(List* list, int target_index, int value) //FIXME �
 
     list->array[new_index].data = value;
 
+    list->array[new_index].prev = target_index;
+    list->array[new_index].next = list->array[target_index].next;
+
+    list->array[target_index].next = new_index;
+    list->array[list->array[new_index].next].prev = new_index;
+
     // случай когда вставляем после нулевого poisonа (начала списка)
-    if (target_index == 0)
-    {
-        if (list->head == -1)         // вставка в пустой список
-        {
-            list->array[new_index].prev = -1;
-            list->array[new_index].next = -1;
-            list->head = new_index;
-            list->tail = new_index;
-        }
-        else        // вставка в начало непустого списка
-        {
-            list->array[new_index].prev = -1;
-            list->array[new_index].next = list->head;
-            list->array[list->head].prev = new_index;
-            list->head = new_index;
-        }
-    }
-    else
-    {
-        // обычная вставка после существующего элемента
-        list->array[new_index].prev = target_index;
-        list->array[new_index].next = list->array[target_index].next;
-
-        list->array[target_index].next = new_index;
-
-        // если был следующий элемент после target, обновляем его prev
-        if (list->array[new_index].next != -1)
-            list->array[list->array[new_index].next].prev = new_index;
-
-        // если вставляем после хвоста, обновляем tail
-        if (list->tail == target_index)
-            list->tail = new_index;
-    }
+//     if (target_index == 0)
+//     {
+//         if (list->head == -1)         // вставка в пустой список
+//         {
+//             list->array[new_index].prev = -1;
+//             list->array[new_index].next = -1;
+//             list->array[0].prev         = new_index; //head
+//             list->array[0].next         = new_index; //tail
+//         }
+//         else        // вставка в начало непустого списка
+//         {
+//             list->array[new_index].prev = -1;
+//             list->array[new_index].next = list->head;
+//             list->array[list->array[0].prev].prev = new_index;
+//             list->array[0].prev = new_index;
+//         }
+//     }
+//     else
+//     {
+//         // обычная вставка после существующего элемента
+//         list->array[new_index].prev = target_index;
+//         list->array[new_index].next = list->array[target_index].next;
+//
+//         list->array[target_index].next = new_index;
+//
+//         // если был следующий элемент после target, обновляем его prev
+//         if (list->array[new_index].next != -1)
+//             list->array[list->array[new_index].next].prev = new_index;
+//
+//         // если вставляем после хвоста, обновляем tail
+//         if (list->tail == target_index)
+//             list->tail = new_index;
+//     }
 
     return LIST_ERROR_NO;
 }
@@ -125,25 +135,29 @@ ListErrorType ListDelete(List* list, int index)
     if (index < 1 || index >= list->capacity)  // нельзя удалить нулевой poison или несуществующий
         return LIST_INVALID_INDEX;
 
-    if (IsElementFree(list, index))  // нельзя удалить уже свободный элемент
+    if (IsElementFree(list, index))  // FIXME цикл есть или нет? нельзя удалить уже свободный элемент
         return LIST_INVALID_INDEX;
 
     ElementInList* element = &list->array[index];
 
-    // сохр связи для перестроения
-    int prev_index = element->prev;
-    int next_index = element->next;
+    list->array[element->prev].next = element->next;
+    list->array[element->next].prev = element->prev;
 
-    // перестраиваем связи соседних элементов
-    if (prev_index != -1)
-        list->array[prev_index].next = next_index;
-    else
-        list->head = next_index;      // если у элемента нет предыд, значит он голова
-
-    if (next_index != -1)
-        list->array[next_index].prev = prev_index;
-    else
-        list->tail = prev_index;      // если у элемента нет след, значит он хвост
+//
+//     // сохр связи для перестроения
+//     int prev_index = element->prev;
+//     int next_index = element->next;
+//
+//     // перестраиваем связи соседних элементов
+//     if (prev_index != -1)
+//         list->array[prev_index].next = next_index;
+//     else
+//         list->head = next_index;      // если у элемента нет предыд, значит он голова
+//
+//     if (next_index != -1)
+//         list->array[next_index].prev = prev_index;
+//     else
+//         list->tail = prev_index;      // если у элемента нет след, значит он хвост
 
     // возвращаем элемент в список свободных
     element->data = kPoison;
@@ -156,6 +170,8 @@ ListErrorType ListDelete(List* list, int index)
 
 ListErrorType ListDump(List* list, const char* filename)
 {
+    assert(filename);
+
     FILE* file = fopen(filename, "w");
     if (!file)
         return LIST_ERROR_OPENING_FILE;
@@ -173,17 +189,17 @@ ListErrorType ListDump(List* list, const char* filename)
 
         int is_free = IsElementFree(list, i); //FIXME
 
-        if (i == list->head && i == list->tail)
+        if (i == list->array[0].prev && i == list->array[0].next) //когда эл-т одновременно и хвост, и голова
         {
             color = "lightpurple";
             label = "HEAD/TAIL";
         }
-        else if (i == list->head)
+        else if (i == list->array[0].next)
         {
             color = "lightblue";
             label = "HEAD";
         }
-        else if (i == list->tail)
+        else if (i == list->array[0].prev)
         {
             color = "lightyellow";
             label = "TAIL";
@@ -207,7 +223,7 @@ ListErrorType ListDump(List* list, const char* filename)
 
     // создаем невидимые связи для выстраивания в один ряд
     for (int i = 0; i < list->capacity - 1; i++)
-        fprintf(file, "    element%d -> element%d [weight=100, style=invis, color=white];\n", i, i+1);
+        fprintf(file, "    element%d -> element%d [weight=100000, style=invis, color=white];\n", i, i+1);
 
     // создаем связи для используемых элементов
     for (int i = 0; i < list->capacity; i++)
@@ -219,11 +235,11 @@ ListErrorType ListDump(List* list, const char* filename)
 
         // связь next (синяя стрелка)
         if (element->next != -1)
-            fprintf(file, "    element%d -> element%d [color=blue, label=\"next\"];\n", i, element->next);
+            fprintf(file, "    element%d -> element%d [color=blue, label=\"next\", constraint=false];\n", i, element->next); //FIXME без constraint=false ебануто кривой порядок у узлов, так как дот стремится построить с минимальным количеством пересечений стрелочек
 
         // связь prev (красная стрелка)
         if (element->prev != -1)
-            fprintf(file, "    element%d -> element%d [color=red, label=\"prev\", style=dashed];\n", i, element->prev);
+            fprintf(file, "    element%d -> element%d [color=red, label=\"prev\", style=dashed, constraint=false];\n", i, element->prev); //FIXME разобраться и установить соответствие, чему равен array[0].prev и array[0].next (TAIL и HEAD?)
     }
 
     fprintf(file, "\n");
@@ -234,7 +250,7 @@ ListErrorType ListDump(List* list, const char* filename)
     {
         ElementInList* element = &list->array[free_idx];
         if (element->next != -1)
-            fprintf(file, "    element%d -> element%d [color=gray, label=\"free\"];\n", free_idx, element->next);
+            fprintf(file, "    element%d -> element%d [color=gray, label=\"free\", constraint=false];\n", free_idx, element->next);
 
         free_idx = element->next;
     }
@@ -245,11 +261,11 @@ ListErrorType ListDump(List* list, const char* filename)
     fprintf(file, "    tail_ptr [shape=plaintext, label=\"tail\"];\n");
     fprintf(file, "    free_ptr [shape=plaintext, label=\"free\"];\n");
 
-    if (list->head != -1)
-        fprintf(file, "    head_ptr -> element%d [color=darkblue];\n", list->head);
+    if (list->array[0].prev != -1)
+        fprintf(file, "    head_ptr -> element%d [color=darkblue];\n", list->array[0].next);
 
-    if (list->tail != -1)
-        fprintf(file, "    tail_ptr -> element%d [color=darkgreen];\n", list->tail);
+    if (list->array[0].next != -1)
+        fprintf(file, "    tail_ptr -> element%d [color=darkgreen];\n", list->array[0].prev);
 
     if (list->free != -1)
         fprintf(file, "    free_ptr -> element%d [color=black];\n", list->free);
@@ -258,7 +274,7 @@ ListErrorType ListDump(List* list, const char* filename)
     fclose(file);
 
     printf("Данные сохранены в %s\n", filename);
-    printf("Для визуализации выполните: dot -Tpng %s -o graph.png\n", filename);
+    printf("Для визуализации выполните: dot -Tsvg %s -o graph.svg\n", filename);
 
     return LIST_ERROR_NO;
 }

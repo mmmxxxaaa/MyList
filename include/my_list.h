@@ -18,8 +18,6 @@ typedef struct {
 
 typedef struct {
     ElementInList* array;
-    int head;
-    int tail;
     int free;
     int capacity;
 } List;
