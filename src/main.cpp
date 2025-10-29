@@ -5,25 +5,23 @@ int main()
 {
     List list = {};
     ListCtorWithSpecifiedCapacity(&list, 7);
+    InitListLog("list_log.htm");
 
-    // список: 10 -> 20 -> 30 -> 40
     ListInsertAfter(&list, 0, 10);
     ListInsertAfter(&list, 1, 20);
     ListInsertAfter(&list, 2, 30);
     ListInsertAfter(&list, 3, 40);
 
-    // дамп до удаления
-    ListDump(&list, "before_delete.txt");
+    ListDump(&list, "list_log.htm");
 
-    // удаляем элемент с индексом 2 (значение 20)
     ListDelete(&list, 2);
 
-    // дамп после удаления
-    ListDump(&list, "after_delete.txt");
+    ListDump(&list, "list_log.htm");
 
     ListInsertAfter(&list, 4, 50);
-    ListDump(&list, "after_new_insert.txt");
+    ListDump(&list, "list_log.htm");
 
+    CloseListLog("list_log.htm");
     ListDtor(&list);
     return 0;
 
