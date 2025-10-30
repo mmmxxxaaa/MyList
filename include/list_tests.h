@@ -6,7 +6,7 @@ void TestMultipleInsertionsAndDeleteMiddle();
 void TestDeleteHead();
 void TestDeleteTail();
 void TestDeleteLastRemainingElement();
-// void TestInvalidOperations();
+void TestReallocation();
 void TestReuseAfterDelete();
 void AllTests();
 

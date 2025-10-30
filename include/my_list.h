@@ -24,13 +24,15 @@ typedef struct {
     int capacity;
 } List;
 
-const DataType kPoison                 = 525252;
-const int      kMaxLengthOfFilename    = 256;
-const int      kMaxSystemCommandLength = 512;
-const int      kFictiveElementIndex    = 0;
+const DataType kPoison                      = 525252;
+const int      kMaxLengthOfFilename         = 256;
+const int      kMaxSystemCommandLength      = 512;
+const int      kFictiveElementIndex         = 0;
+const int      kCapacityIncreaseCoefficient = 2;
 
 ListErrorType ListCtorWithSpecifiedCapacity(List* ptr_list_struct, int capacity);
 ListErrorType ListDtor(List* ptr_list_struct);
+ListErrorType ListRealloc(List* list, int new_capacity);
 
 ListErrorType ListInsertAfter          (List* list, int target_index, int value);
 ListErrorType ListDeleteAt             (List* list, int index);

@@ -54,6 +54,46 @@ ListErrorType ListCtorWithSpecifiedCapacity(List* ptr_list_struct, int capacity)
     return LIST_ERROR_NO;
 }
 
+ListErrorType ListRealloc(List* list, int new_capacity)
+{
+    if (list == NULL)
+        return LIST_NULL_POINTER;
+
+    if (new_capacity <= list->capacity)
+        return LIST_WRONG_SPECIFIED_CAPACITY;
+
+    ElementInList* new_array = (ElementInList*)realloc(list->array, new_capacity * sizeof(ElementInList));
+    if (new_array == NULL)
+        return LIST_REALLOCATION_FAILED;
+
+    list->array = new_array;
+
+    int old_capacity = list->capacity; //инициализируем новые элементы
+    for (int i = old_capacity; i < new_capacity; i++)
+    {
+        list->array[i].data = kPoison;
+        list->array[i].next = (i == new_capacity - 1) ? 0 : i + 1;
+        list->array[i].prev = -1;
+    }
+    if (list->free == 0)
+    {
+        // Если свободных не было, начинаем с первого нового элемента
+        list->free = old_capacity;
+    }
+    else
+    {
+        // Находим последний элемент в текущем списке свободных
+        int last_free = list->free;
+        while (list->array[last_free].next != 0)
+            last_free = list->array[last_free].next;
+        // Связываем последний свободный с первым новым
+        list->array[last_free].next = old_capacity;
+    }
+
+    list->capacity = new_capacity;
+    return LIST_ERROR_NO;
+}
+
 ListErrorType ListDtor(List* ptr_list_struct)
 {
     assert(ptr_list_struct);
@@ -75,7 +115,11 @@ ListErrorType ListInsertAfter(List* list, int target_index, int value)
     //     return LIST_INVALID_INDEX;
 
     if (list->free == 0)
-        return LIST_NO_FREE_SPACE;
+    {
+        ListErrorType realloc_result = ListRealloc(list, list->capacity * kCapacityIncreaseCoefficient);
+        if (realloc_result != LIST_ERROR_NO)
+            return realloc_result;
+    }
 
     int new_index = list->free;
     list->free = list->array[new_index].next;
@@ -136,7 +180,6 @@ ListErrorType ListDeleteAt(List* list, int index)
 }
 
 //АШЧЬУ добавить реаллокацию
-//АШЧЬУ пофиксить названия папок
 
 ListErrorType ListDump(List* list, const char* filename)
 {
@@ -144,7 +187,6 @@ ListErrorType ListDump(List* list, const char* filename)
     assert(filename);
 
     char folder_name[kMaxLengthOfFilename] = {};
-
     snprintf(folder_name, sizeof(folder_name), "%s_dump", filename);
 
     char command[kMaxSystemCommandLength] = {};
@@ -152,9 +194,9 @@ ListErrorType ListDump(List* list, const char* filename)
     system(command);
 
     char htm_filename[kMaxLengthOfFilename] = {};
-    snprintf(htm_filename, sizeof(htm_filename), "%s.%s.htm", folder_name);
+    snprintf(htm_filename, sizeof(htm_filename), "%s.htm", filename);
 
-    FILE* htm_file = fopen(filename, "a");
+    FILE* htm_file = fopen(htm_filename, "a");
     if (!htm_file)
         return LIST_ERROR_OPENING_FILE;
 
@@ -173,8 +215,9 @@ ListErrorType ListDump(List* list, const char* filename)
     static int n_of_pictures = 0;
     char temp_dot[kMaxLengthOfFilename] = {};
     char temp_svg[kMaxLengthOfFilename] = {};
-    snprintf(temp_dot, sizeof(temp_dot), "%s/temp_%d%ld.dot",folder_name, n_of_pictures++, now);
-    snprintf(temp_svg, sizeof(temp_svg), "%s/temp_%d%ld.svg",folder_name, n_of_pictures++, now); //FIXME now в секундах?
+    snprintf(temp_dot, sizeof(temp_dot), "%s/temp_%d%ld.dot",folder_name, n_of_pictures, now);
+    snprintf(temp_svg, sizeof(temp_svg), "%s/temp_%d%ld.svg",folder_name, n_of_pictures, now);
+    n_of_pictures++;
 
     FILE* dot_file = fopen(temp_dot, "w");
     if (!dot_file)
@@ -316,7 +359,10 @@ ListErrorType ListDump(List* list, const char* filename)
 
 ListErrorType InitListLog(const char* filename)
 {
-    FILE* htm_file = fopen(filename, "w");
+    char htm_filename[kMaxLengthOfFilename] = {};
+    snprintf(htm_filename, sizeof(htm_filename), "%s.htm", filename);
+
+    FILE* htm_file = fopen(htm_filename, "w");
     if (!htm_file)
         return LIST_ERROR_OPENING_FILE;
 
@@ -340,7 +386,10 @@ ListErrorType InitListLog(const char* filename)
 
 ListErrorType CloseListLog(const char* filename)
 {
-    FILE* htm_file = fopen(filename, "a");
+    char htm_filename[kMaxLengthOfFilename] = {};
+    snprintf(htm_filename, sizeof(htm_filename), "%s.htm", filename);
+
+    FILE* htm_file = fopen(htm_filename, "a");
     if (!htm_file)
         return LIST_ERROR_OPENING_FILE;
 
