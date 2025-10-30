@@ -10,8 +10,10 @@
         (ptr) = NULL;           \
     } while(0)
 
+typedef int DataType;
+
 typedef struct {
-    int data;
+    DataType data;
     int next;
     int prev;
 } ElementInList;
@@ -22,15 +24,19 @@ typedef struct {
     int capacity;
 } List;
 
-const int kPoison                 = 525252;
-const int KMaxLengthOfFilename    = 256;
-const int kMaxSystemCommandLength = 512;
+const DataType kPoison                 = 525252;
+const int      kMaxLengthOfFilename    = 256;
+const int      kMaxSystemCommandLength = 512;
+const int      kFictiveElementIndex    = 0;
 
 ListErrorType ListCtorWithSpecifiedCapacity(List* ptr_list_struct, int capacity);
 ListErrorType ListDtor(List* ptr_list_struct);
 
-ListErrorType ListInsertAfter (List* list, int target_index, int value);
-ListErrorType ListDelete(List* list, int index);
+ListErrorType ListInsertAfter          (List* list, int target_index, int value);
+ListErrorType ListDeleteAt             (List* list, int index);
+ListErrorType ListInsertBeforeHead     (List* list, int value); //для программиста же неочевидно, что надо писать ListInsertAfter(&list, 0, value)
+ListErrorType ListInsertAfterTail      (List* list, int value);
+ListErrorType ListInsertTheFirstElement(List* list, int value); //для программиста же неочевидно, что надо писать ListInsertAfter(&list, 0, value)
 
 ListErrorType ListDump(List* ptr_list_struct, const char* filename);
 ListErrorType InitListLog(const char* filename);

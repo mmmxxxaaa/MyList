@@ -15,7 +15,7 @@ static int IsElementFree(List* list, int index)
         return 0;
 
     int free_idx = list->free;
-    while (free_idx != -1)
+    while (free_idx != 0)
     {
         if (free_idx == index)
             return 1;
@@ -38,14 +38,14 @@ ListErrorType ListCtorWithSpecifiedCapacity(List* ptr_list_struct, int capacity)
     ptr_list_struct->capacity = capacity;
 
     // инициализация poisonа на нулевом индексе
-    ptr_list_struct->array[0].data = kPoison;
-    ptr_list_struct->array[0].next = 0;
-    ptr_list_struct->array[0].prev = 0;
+    ptr_list_struct->array[kFictiveElementIndex].data = kPoison;
+    ptr_list_struct->array[kFictiveElementIndex].next = 0;
+    ptr_list_struct->array[kFictiveElementIndex].prev = 0;
 
     for (int i = 1; i < capacity; i++)
     {
         ptr_list_struct->array[i].data = kPoison;
-        ptr_list_struct->array[i].next = (i == capacity - 1) ? -1 : i + 1;
+        ptr_list_struct->array[i].next = (i == capacity - 1) ? 0 : i + 1;
         ptr_list_struct->array[i].prev = -1;
     }
 
@@ -71,10 +71,10 @@ ListErrorType ListInsertAfter(List* list, int target_index, int value)
     if (target_index < 0 || target_index >= list->capacity)
         return LIST_INVALID_INDEX;
 
-    if (IsElementFree(list, target_index) && target_index != 0) // FIXME цикл есть или нет?
-        return LIST_INVALID_INDEX;
+    // if (IsElementFree(list, target_index) && target_index != 0) // FIXME цикл есть или нет?
+    //     return LIST_INVALID_INDEX;
 
-    if (list->free == -1)
+    if (list->free == 0)
         return LIST_NO_FREE_SPACE;
 
     int new_index = list->free;
@@ -91,7 +91,27 @@ ListErrorType ListInsertAfter(List* list, int target_index, int value)
     return LIST_ERROR_NO;
 }
 
-ListErrorType ListDelete(List* list, int index)
+ListErrorType ListInsertBeforeHead(List* list, int value)
+{
+    return ListInsertAfter(list, kFictiveElementIndex, value);
+}
+
+ListErrorType ListInsertAfterTail(List* list, int value)
+{
+    if (list == NULL)
+        return LIST_NULL_POINTER;
+
+    int tail_index = list->array[kFictiveElementIndex].prev;
+
+    return ListInsertAfter(list, tail_index, value);
+}
+
+ListErrorType ListInsertTheFirstElement(List* list, int value)
+{
+    return ListInsertAfter(list, kFictiveElementIndex, value);
+}
+
+ListErrorType ListDeleteAt(List* list, int index)
 {
     if (list == NULL)
         return LIST_NULL_POINTER;
@@ -99,8 +119,8 @@ ListErrorType ListDelete(List* list, int index)
     if (index < 1 || index >= list->capacity)
         return LIST_INVALID_INDEX;
 
-    if (IsElementFree(list, index))  // FIXME цикл есть или нет? нельзя удалить уже свободный элемент
-        return LIST_INVALID_INDEX;
+    // if (IsElementFree(list, index))  // FIXME цикл есть или нет? нельзя удалить уже свободный элемент
+    //     return LIST_INVALID_INDEX;
 
     ElementInList* element = &list->array[index];
 
@@ -115,10 +135,24 @@ ListErrorType ListDelete(List* list, int index)
     return LIST_ERROR_NO;
 }
 
+//АШЧЬУ добавить реаллокацию
+//АШЧЬУ пофиксить названия папок
+
 ListErrorType ListDump(List* list, const char* filename)
 {
+    assert(list);
     assert(filename);
-    static int n_of_pictures = 0;
+
+    char folder_name[kMaxLengthOfFilename] = {};
+
+    snprintf(folder_name, sizeof(folder_name), "%s_dump", filename);
+
+    char command[kMaxSystemCommandLength] = {};
+    snprintf(command, sizeof(command), "mkdir -p %s", folder_name); //FIXME -p
+    system(command);
+
+    char htm_filename[kMaxLengthOfFilename] = {};
+    snprintf(htm_filename, sizeof(htm_filename), "%s.%s.htm", folder_name);
 
     FILE* htm_file = fopen(filename, "a");
     if (!htm_file)
@@ -132,13 +166,15 @@ ListErrorType ListDump(List* list, const char* filename)
     fprintf(htm_file, "<div style='margin-bottom:15px;'>\n"); //margin -- внешний отступ, padding -- внутренний
     fprintf(htm_file, "<p><b>Capacity:</b> %d</p>\n", list->capacity);
     fprintf(htm_file, "<p><b>Free head:</b> %d</p>\n", list->free);
-    fprintf(htm_file, "<p><b>Head index:</b> %d</p>\n", list->array[0].next); //мб еще size добавить
-    fprintf(htm_file, "<p><b>Tail index:</b> %d</p>\n", list->array[0].prev);
+    fprintf(htm_file, "<p><b>Head index:</b> %d</p>\n", list->array[kFictiveElementIndex].next); //мб еще size добавить
+    fprintf(htm_file, "<p><b>Tail index:</b> %d</p>\n", list->array[kFictiveElementIndex].prev);
     fprintf(htm_file, "</div>\n");
 
-    char temp_dot[KMaxLengthOfFilename], temp_svg[KMaxLengthOfFilename];
-    snprintf(temp_dot, sizeof(temp_dot), "temp_%d%ld.dot", n_of_pictures++, now);
-    snprintf(temp_svg, sizeof(temp_svg), "temp_%d%ld.svg", n_of_pictures++, now);
+    static int n_of_pictures = 0;
+    char temp_dot[kMaxLengthOfFilename] = {};
+    char temp_svg[kMaxLengthOfFilename] = {};
+    snprintf(temp_dot, sizeof(temp_dot), "%s/temp_%d%ld.dot",folder_name, n_of_pictures++, now);
+    snprintf(temp_svg, sizeof(temp_svg), "%s/temp_%d%ld.svg",folder_name, n_of_pictures++, now); //FIXME now в секундах?
 
     FILE* dot_file = fopen(temp_dot, "w");
     if (!dot_file)
@@ -147,7 +183,9 @@ ListErrorType ListDump(List* list, const char* filename)
         return LIST_ERROR_OPENING_FILE;
     }
 
+//FIXME делить на функции
 //==============================РАБОТА С DOT========================================================
+
     fprintf(dot_file, "digraph DoublyLinkedList {\n");
     fprintf(dot_file, "    rankdir=LR;\n");
     fprintf(dot_file, "    node [shape=Mrecord, color = black];\n\n");
@@ -159,25 +197,25 @@ ListErrorType ListDump(List* list, const char* filename)
         const char* label = "FREE";
         int is_free = IsElementFree(list, i);
 
-        if (i == list->array[0].prev && i == list->array[0].next)
+        if (i == 0)
         {
-            color = "lightpurple";
+            color = "lightcoral";
+            label = "FICTIVE";
+        }
+        else if (i == list->array[kFictiveElementIndex].prev && i == list->array[kFictiveElementIndex].next)
+        {
+            color = "orange";
             label = "HEAD/TAIL";
         }
-        else if (i == list->array[0].next)
+        else if (i == list->array[kFictiveElementIndex].next)
         {
             color = "lightblue";
             label = "HEAD";
         }
-        else if (i == list->array[0].prev)
+        else if (i == list->array[kFictiveElementIndex].prev)
         {
             color = "lightyellow";
             label = "TAIL";
-        }
-        else if (i == 0)
-        {
-            color = "lightcoral";
-            label = "POISON";
         }
         else if (!is_free)
         {
@@ -186,7 +224,7 @@ ListErrorType ListDump(List* list, const char* filename)
         }
 
         fprintf(dot_file, "    element%d [label=\"{%s|{idx: %d|data: %d|next: %d|prev: %d}}\", style=filled, fillcolor=%s, color=black];\n", //Внешние фигурные скобки создают основную таблицу символ | между элементами разделяет строки таблицы; Внутренние фигурные скобки создают вложенные таблицы/ячейки Символ | внутри внутренних скобок разделяет столбцы внутри строки
-                i, label, i, element->data, element->next, element->prev, color);
+                i, label, i, element->data, element->next, element->prev, color); //FIXME что тут происходит
     }
 
     fprintf(dot_file, "\n");
@@ -199,8 +237,8 @@ ListErrorType ListDump(List* list, const char* filename)
         if (IsElementFree(list, i) || i == 0)
             continue;
 
-        if (element->next != -1)
-            fprintf(dot_file, "    element%d -> element%d [color=blue, label=\"next\", constraint=false];\n", i, element->next);
+        // if (element->next != 0)
+        fprintf(dot_file, "    element%d -> element%d [color=blue, label=\"next\", constraint=false];\n", i, element->next);
 
         if (element->prev != -1)
             fprintf(dot_file, "    element%d -> element%d [color=red, label=\"prev\", style=dashed, constraint=false];\n", i, element->prev);
@@ -208,26 +246,18 @@ ListErrorType ListDump(List* list, const char* filename)
 
     fprintf(dot_file, "\n");
     int free_idx = list->free;
-    while (free_idx != -1 && free_idx < list->capacity)
+    while (free_idx != 0 && free_idx < list->capacity)
     {
         ElementInList* element = &list->array[free_idx];
-        if (element->next != -1)
+        if (element->next != 0)
             fprintf(dot_file, "    element%d -> element%d [color=gray, label=\"free\", constraint=false];\n", free_idx, element->next);
         free_idx = element->next;
     }
 
     fprintf(dot_file, "\n");
-    fprintf(dot_file, "    head_ptr [shape=plaintext, label=\"head\"];\n");
-    fprintf(dot_file, "    tail_ptr [shape=plaintext, label=\"tail\"];\n");
     fprintf(dot_file, "    free_ptr [shape=plaintext, label=\"free\"];\n");
 
-    if (list->array[0].prev != -1)
-        fprintf(dot_file, "    head_ptr -> element%d [color=darkblue];\n", list->array[0].next);
-
-    if (list->array[0].next != -1)
-        fprintf(dot_file, "    tail_ptr -> element%d [color=darkgreen];\n", list->array[0].prev);
-
-    if (list->free != -1)
+    if (list->free != 0)
         fprintf(dot_file, "    free_ptr -> element%d [color=black];\n", list->free);
 
     fprintf(dot_file, "}\n");
@@ -235,7 +265,7 @@ ListErrorType ListDump(List* list, const char* filename)
 //==================================================================================================
 
     // создаем картинки
-    char command[kMaxSystemCommandLength];
+    // char command[kMaxSystemCommandLength] = {}; //АШЧЬУ
     snprintf(command, sizeof(command), "dot -Tsvg %s -o %s", temp_dot, temp_svg);
     int result = system(command);
 
@@ -252,16 +282,18 @@ ListErrorType ListDump(List* list, const char* filename)
     fprintf(htm_file, "<table border='1' style='border-collapse:collapse; width:100%%; margin-top:15px;'>\n");
     fprintf(htm_file, "<tr><th>Index</th><th>Data</th><th>Next</th><th>Prev</th><th>Status</th></tr>\n");
 
-    for (int i = 0; i < list->capacity; i++) {
+    for (int i = 0; i < list->capacity; i++)
+    {
         ElementInList* element = &list->array[i];
         const char* status = "FREE";
 
-        if (i == 0) status = "POISON";
-        else if (i == list->array[0].next && i == list->array[0].prev)
+        if (i == 0)
+            status = "FICTIVE";
+        else if (i == list->array[kFictiveElementIndex].next && i == list->array[kFictiveElementIndex].prev)
             status = "HEAD/TAIL";
-        else if (i == list->array[0].next)
+        else if (i == list->array[kFictiveElementIndex].next)
             status = "HEAD";
-        else if (i == list->array[0].prev)
+        else if (i == list->array[kFictiveElementIndex].prev)
             status = "TAIL";
         else if (!IsElementFree(list, i))
             status = "USED";
