@@ -101,7 +101,7 @@ void TestDeleteLastRemainingElement()
     List list = {};
     ListCtorWithSpecifiedCapacity(&list, 5);
 
-    const char* folder_name = "log_TestDeleteLastRemainingElement"; //FIXME везде так
+    const char* folder_name = "log_TestDeleteLastRemainingElement";
     InitListLog(folder_name);
 
     ListInsertTheFirstElement(&list, 100);
@@ -160,6 +160,52 @@ void TestReuseAfterDelete()
     ListDtor(&list);
 }
 
+void TestDumpWithBeautifulErrorPrevVisualization()
+{
+    List list = {};
+    ListCtorWithSpecifiedCapacity(&list, 5);
+
+    const char* folder_name = "log_TestDumpWithBeautifulErrorPrevVisualization";
+    InitListLog(folder_name);
+
+    ListInsertTheFirstElement(&list, 10);
+    ListInsertAfter(&list, 1, 20);
+    ListInsertAfter(&list, 2, 30);
+    ListInsertAfter(&list, 3, 40);
+    ListInsertAfter(&list, 4, 50);
+    ListInsertAfter(&list, 5, 60);
+    ListInsertAfter(&list, 6, 70);
+    ListDump(&list, folder_name);
+    list.array[4].prev = 690;
+    ListDump(&list, folder_name);
+
+    CloseListLog(folder_name);
+    ListDtor(&list);
+}
+
+void TestDumpWithBeautifulErrorNextVisualization()
+{
+    List list = {};
+    ListCtorWithSpecifiedCapacity(&list, 5);
+
+    const char* folder_name = "log_TestDumpWithBeautifulErrorNextVisualization";
+    InitListLog(folder_name);
+
+    ListInsertTheFirstElement(&list, 10);
+    ListInsertAfter(&list, 1, 20);
+    ListInsertAfter(&list, 2, 30);
+    ListInsertAfter(&list, 3, 40);
+    ListInsertAfter(&list, 4, 50);
+    ListInsertAfter(&list, 5, 60);
+    ListInsertAfter(&list, 6, 70);
+    ListDump(&list, folder_name);
+    list.array[4].next = 690;
+    ListDump(&list, folder_name);
+
+    CloseListLog(folder_name);
+    ListDtor(&list);
+}
+
 void AllTests()
 {
     TestFirstInsert();
@@ -169,4 +215,8 @@ void AllTests()
     TestDeleteLastRemainingElement();
     TestReuseAfterDelete();
     TestReallocation();
+    TestDumpWithBeautifulErrorPrevVisualization();
+    TestDumpWithBeautifulErrorNextVisualization();
 }
+
+//FIXME добавить вручную испорченные дампы и проверить его верификатором и задампить

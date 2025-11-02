@@ -8,6 +8,10 @@ void TestDeleteTail();
 void TestDeleteLastRemainingElement();
 void TestReallocation();
 void TestReuseAfterDelete();
+void TestDumpWithBeautifulErrorPrevVisualization();
+void TestDumpWithBeautifulErrorNextVisualization();
+
+
 void AllTests();
 
 

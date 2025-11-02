@@ -5,9 +5,7 @@
 #include <stdlib.h>
 #include <time.h>
 
-#include <string.h>
-
-static int IsElementFree(List* list, int index)
+int IsElementFree(List* list, int index)
 {
     assert(list);
 
@@ -39,16 +37,17 @@ ListErrorType ListCtorWithSpecifiedCapacity(List* ptr_list_struct, int capacity)
 
     // инициализация poisonа на нулевом индексе
     ptr_list_struct->array[kFictiveElementIndex].data = kPoison;
-    ptr_list_struct->array[kFictiveElementIndex].next = 0;
-    ptr_list_struct->array[kFictiveElementIndex].prev = 0;
+    ptr_list_struct->array[kFictiveElementIndex].next = kFictiveElementIndex;
+    ptr_list_struct->array[kFictiveElementIndex].prev = kFictiveElementIndex;
 
     for (int i = 1; i < capacity; i++)
     {
         ptr_list_struct->array[i].data = kPoison;
-        ptr_list_struct->array[i].next = (i == capacity - 1) ? 0 : i + 1;
+        ptr_list_struct->array[i].next = (i == capacity - 1) ? kFictiveElementIndex : i + 1;
         ptr_list_struct->array[i].prev = -1;
     }
 
+    ptr_list_struct->size = 0;
     ptr_list_struct->free = 1;
 
     return LIST_ERROR_NO;
@@ -72,21 +71,20 @@ ListErrorType ListRealloc(List* list, int new_capacity)
     for (int i = old_capacity; i < new_capacity; i++)
     {
         list->array[i].data = kPoison;
-        list->array[i].next = (i == new_capacity - 1) ? 0 : i + 1;
+        list->array[i].next = (i == new_capacity - 1) ? kFictiveElementIndex : i + 1;
         list->array[i].prev = -1;
     }
-    if (list->free == 0)
+    if (list->free == kFictiveElementIndex)
     {
-        // Если свободных не было, начинаем с первого нового элемента
-        list->free = old_capacity;
+        list->free = old_capacity; // если свободных не было, начинаем с первого нового элемента
     }
     else
     {
-        // Находим последний элемент в текущем списке свободных
+        // находим последний элемент в текущем списке свободных
         int last_free = list->free;
-        while (list->array[last_free].next != 0)
+        while (list->array[last_free].next != kFictiveElementIndex) //FIXME новое поле, которое хранит индекс последнего free, и тут к нему обращаться и не будет цикла
             last_free = list->array[last_free].next;
-        // Связываем последний свободный с первым новым
+        // связываем последний свободный с первым новым
         list->array[last_free].next = old_capacity;
     }
 
@@ -97,6 +95,10 @@ ListErrorType ListRealloc(List* list, int new_capacity)
 ListErrorType ListDtor(List* ptr_list_struct)
 {
     assert(ptr_list_struct);
+
+    ptr_list_struct->capacity = 0;
+    ptr_list_struct->size     = 0;
+    ptr_list_struct->free     = 0;
 
     FREE_AND_NULL(ptr_list_struct->array);
 
@@ -132,6 +134,7 @@ ListErrorType ListInsertAfter(List* list, int target_index, int value)
     list->array[target_index].next = new_index;
     list->array[list->array[new_index].next].prev = new_index;
 
+    list->size += 1;
     return LIST_ERROR_NO;
 }
 
@@ -163,7 +166,7 @@ ListErrorType ListDeleteAt(List* list, int index)
     if (index < 1 || index >= list->capacity)
         return LIST_INVALID_INDEX;
 
-    // if (IsElementFree(list, index))  // FIXME цикл есть или нет? нельзя удалить уже свободный элемент
+    // if (IsElementFree(list, index))  // нужно ли проверять? нельзя удалить уже свободный элемент
     //     return LIST_INVALID_INDEX;
 
     ElementInList* element = &list->array[index];
@@ -174,12 +177,22 @@ ListErrorType ListDeleteAt(List* list, int index)
     element->data = kPoison;
     element->prev = -1;
     element->next = list->free;
-    list->free = index;
+
+    list->free  = index;
+    list->size -= 1;
 
     return LIST_ERROR_NO;
 }
 
-//АШЧЬУ добавить реаллокацию
+int GetIndexOfHead(List* list)
+{
+    return list->array[kFictiveElementIndex].next;
+}
+
+int GetIndexOfTail(List* list)
+{
+    return list->array[kFictiveElementIndex].prev;
+}
 
 ListErrorType ListDump(List* list, const char* filename)
 {
@@ -190,7 +203,7 @@ ListErrorType ListDump(List* list, const char* filename)
     snprintf(folder_name, sizeof(folder_name), "%s_dump", filename);
 
     char command[kMaxSystemCommandLength] = {};
-    snprintf(command, sizeof(command), "mkdir -p %s", folder_name); //FIXME -p
+    snprintf(command, sizeof(command), "mkdir -p %s", folder_name);
     system(command);
 
     char htm_filename[kMaxLengthOfFilename] = {};
@@ -207,9 +220,17 @@ ListErrorType ListDump(List* list, const char* filename)
     // Базовая инфа
     fprintf(htm_file, "<div style='margin-bottom:15px;'>\n"); //margin -- внешний отступ, padding -- внутренний
     fprintf(htm_file, "<p><b>Capacity:</b> %d</p>\n", list->capacity);
+    fprintf(htm_file, "<p><b>Size:</b> %d</p>\n", list->size);
     fprintf(htm_file, "<p><b>Free head:</b> %d</p>\n", list->free);
-    fprintf(htm_file, "<p><b>Head index:</b> %d</p>\n", list->array[kFictiveElementIndex].next); //мб еще size добавить
+    fprintf(htm_file, "<p><b>Head index:</b> %d</p>\n", list->array[kFictiveElementIndex].next);
     fprintf(htm_file, "<p><b>Tail index:</b> %d</p>\n", list->array[kFictiveElementIndex].prev);
+
+    VerifyResult verify_result          = VerifyList(list);
+    const char* verify_result_in_string = VerifyResultToString(verify_result);
+    const char* verify_color            = (verify_result == VERIFY_SUCCESS) ? "green" : "red";
+    fprintf(htm_file, "<p><b>Verify result:</b> <span style='color:%s; font_weight: bold;'>%s</span></p>\n",
+            verify_color, verify_result_in_string);
+
     fprintf(htm_file, "</div>\n");
 
     static int n_of_pictures = 0;
@@ -226,9 +247,8 @@ ListErrorType ListDump(List* list, const char* filename)
         return LIST_ERROR_OPENING_FILE;
     }
 
-//FIXME делить на функции
+//FIXME на функции разнести
 //==============================РАБОТА С DOT========================================================
-
     fprintf(dot_file, "digraph DoublyLinkedList {\n");
     fprintf(dot_file, "    rankdir=LR;\n");
     fprintf(dot_file, "    node [shape=Mrecord, color = black];\n\n");
@@ -267,24 +287,51 @@ ListErrorType ListDump(List* list, const char* filename)
         }
 
         fprintf(dot_file, "    element%d [label=\"{%s|{idx: %d|data: %d|next: %d|prev: %d}}\", style=filled, fillcolor=%s, color=black];\n", //Внешние фигурные скобки создают основную таблицу символ | между элементами разделяет строки таблицы; Внутренние фигурные скобки создают вложенные таблицы/ячейки Символ | внутри внутренних скобок разделяет столбцы внутри строки
-                i, label, i, element->data, element->next, element->prev, color); //FIXME что тут происходит
+                i, label, i, element->data, element->next, element->prev, color);
     }
 
     fprintf(dot_file, "\n");
+
     for (int i = 0; i < list->capacity - 1; i++)
         fprintf(dot_file, "    element%d -> element%d [weight=100000, style=invis, color=white];\n", i, i+1);
 
+//проверяем связи и рисуем их
     for (int i = 0; i < list->capacity; i++)
     {
         ElementInList* element = &list->array[i];
-        if (IsElementFree(list, i) || i == 0)
+
+        if (IsElementFree(list, i))
             continue;
 
-        // if (element->next != 0)
-        fprintf(dot_file, "    element%d -> element%d [color=blue, label=\"next\", constraint=false];\n", i, element->next);
+        int next = element->next;
+        int prev = element->prev;
 
-        if (element->prev != -1)
-            fprintf(dot_file, "    element%d -> element%d [color=red, label=\"prev\", style=dashed, constraint=false];\n", i, element->prev);
+        if (next >= 0 && next < list->capacity)
+        {
+            if (list->array[next].prev == i) //чекаем двустороннюю связь //FIXME
+                fprintf(dot_file, "    element%d -> element%d [color=black, constraint=false, arrowhead=normal, arrowtail=normal, dir=both];\n", i, next);
+            else
+            {
+                fprintf(dot_file, "    element%d -> element%d [color=blue, label=\"next\", constraint=false];\n", i, next);
+
+                fprintf(dot_file, "    error_prev_%d [shape=ellipse, style=filled, fillcolor=orange, label=\"Prev Error: element%d->next=%d\\nbut element%d->prev=%d\"];\n",
+                        i, i, next, next, list->array[next].prev);
+                fprintf(dot_file, "    error_prev_%d -> element%d [color=red, style=dashed];\n", i, next);
+            }
+        }
+
+        if (prev >= 0 && prev < list->capacity && prev != -1)
+        {
+            // для prev связи проверяем только неправильные случаи, так как правильные уже нарисованы и будет дублирнование
+            if (list->array[prev].next != i)
+            {
+                fprintf(dot_file, "    element%d -> element%d [color=red, label=\"prev\", constraint=false];\n", i, prev);
+
+                fprintf(dot_file, "    error_next_%d [shape=ellipse, style=filled, fillcolor=yellow, label=\"Next Error: element%d->prev=%d\\nbut element%d->next=%d\"];\n",
+                        i, i, prev, prev, list->array[prev].next);
+                fprintf(dot_file, "    error_next_%d -> element%d [color=blue, style=dashed];\n", i, prev);
+            }
+        }
     }
 
     fprintf(dot_file, "\n");
@@ -308,7 +355,6 @@ ListErrorType ListDump(List* list, const char* filename)
 //==================================================================================================
 
     // создаем картинки
-    // char command[kMaxSystemCommandLength] = {}; //АШЧЬУ
     snprintf(command, sizeof(command), "dot -Tsvg %s -o %s", temp_dot, temp_svg);
     int result = system(command);
 
@@ -321,7 +367,7 @@ ListErrorType ListDump(List* list, const char* filename)
     else
         fprintf(htm_file, "<p style='color:red;'>Error generating SVG graph</p>\n");
 
-    // таблица элементов
+    // таблица элементов //FIXME
     fprintf(htm_file, "<table border='1' style='border-collapse:collapse; width:100%%; margin-top:15px;'>\n");
     fprintf(htm_file, "<tr><th>Index</th><th>Data</th><th>Next</th><th>Prev</th><th>Status</th></tr>\n");
 
@@ -400,4 +446,106 @@ ListErrorType CloseListLog(const char* filename)
     return LIST_ERROR_NO;
 }
 
+const char* VerifyResultToString(VerifyResult result)
+{
+    switch (result)
+    {
+        case VERIFY_SUCCESS:                  return "Success";
+        case VERIFY_FAKE_ELEMENT_NEXT_ERROR:  return "Fake element next pointer error";
+        case VERIFY_FAKE_ELEMENT_PREV_ERROR:  return "Fake element prev pointer error";
+        case VERIFY_TAIL_NEXT_ERROR:          return "Tail next pointer error";
+        case VERIFY_HEAD_PREV_ERROR:          return "Head prev pointer error";
+        case VERIFY_CAPACITY_EXCEEDED:        return "Capacity exceeded during traversal";
+        case VERIFY_INVALID_INDEX:            return "Invalid node index";
+        case VERIFY_BIDIRECTIONAL_LINK_ERROR: return "Bidirectional link broken";
+        case VERIFY_COUNT_MISMATCH:           return "Element count mismatch";
+        case VERIFY_EMPTY_LIST_LINKS_ERROR:   return "Empty list links error";
+        case VERIFY_CYCLE_DETECTED:           return "Detected cycle in list";
+        default:                              return "Unknown error";
+    }
+}
+
+VerifyResult DetectCycle(List* list)
+{
+    if (list == NULL || list->size == 0)
+        return VERIFY_SUCCESS;
+
+    int current = kFictiveElementIndex; // идем с фиктивного элемента
+    int steps = 0;
+
+    // идем size + 1 шагов
+    while (steps <= list->size)
+    {
+        current = list->array[current].next;
+
+        if (current < 0 || current >= list->capacity)
+            return VERIFY_INVALID_INDEX;
+
+        steps++;
+
+        // слишком рано встретили фиктивный элемент, значит, ошибка
+        if (current == kFictiveElementIndex && steps <= list->size)
+            return VERIFY_CYCLE_DETECTED;
+
+        // если встретили фиктивный элемент ровно на шаге size + 1, то все ок
+        if (current == kFictiveElementIndex && steps == list->size + 1)
+            break;
+    }
+
+    // НАДО ПРОВЕРИТЬ, ЧТО МЫ ВЫШЛИ ИМЕННО ПО БРЕЙКУ, А НЕ ПРОСТО!!!!!
+    if (current != kFictiveElementIndex)
+        return VERIFY_CYCLE_DETECTED;
+
+    return VERIFY_SUCCESS;
+}
+//FIXME в дампе выводить результат верификатора
+VerifyResult VerifyList(List* list)
+{
+    if (list == NULL)
+        return VERIFY_INVALID_INDEX;
+
+    VerifyResult cycle_check = DetectCycle(list);
+    if (cycle_check != VERIFY_SUCCESS)
+        return cycle_check;
+
+    if (list->size > 0)
+    {
+        int head_index = list->array[kFictiveElementIndex].next;
+        int tail_index = list->array[kFictiveElementIndex].prev;
+
+        if (list->array[tail_index].next != kFictiveElementIndex)
+            return VERIFY_TAIL_NEXT_ERROR;
+        if (list->array[head_index].prev != kFictiveElementIndex)
+            return VERIFY_HEAD_PREV_ERROR;
+
+        int current = head_index; //начинаем обходить с головы
+        int count = 0;
+
+        // чекаем узлы
+        while (count < list->size)
+        {
+            int next = list->array[current].next;
+            if (next < 0 || next >= list->capacity)
+                return VERIFY_INVALID_INDEX;
+
+            // чекаем двустороннюю связь //FIXME создать функцию которая бежит до конца массива по next, пока не встретит ошибку. Если встретит ее, то обрабатывает и бежит дальше. Возвращает индекс элемента, где что-то не так. В верификаторе если возвращаемый индекс != 0, то в верификаторе возвращаю ошибку, а в дампе вывожу
+            if (list->array[next].prev != current)
+                return VERIFY_BIDIRECTIONAL_LINK_ERROR;
+
+            current = next;
+            count++;
+        }
+
+        if (current != kFictiveElementIndex)
+            return VERIFY_CYCLE_DETECTED;
+    }
+    else
+    {
+        if (list->array[kFictiveElementIndex].next != kFictiveElementIndex ||
+            list->array[kFictiveElementIndex].prev != kFictiveElementIndex)
+            return VERIFY_EMPTY_LIST_LINKS_ERROR;
+    }
+
+    return VERIFY_SUCCESS;
+}
 

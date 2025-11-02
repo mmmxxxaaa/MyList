@@ -8,5 +8,4 @@ int main()
     AllTests();
 
     return 0;
-
 }
