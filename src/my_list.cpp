@@ -5,14 +5,14 @@
 #include <stdlib.h>
 #include <time.h>
 
-int IsElementFree(List* list, int index)
+int IsElementFree(List* list, ssize_t index)
 {
     assert(list);
 
     if (index < 0 || index >= list->capacity)
         return 0;
 
-    int free_idx = list->free;
+    ssize_t free_idx = list->free;
     while (free_idx != 0)
     {
         if (free_idx == index)
@@ -23,7 +23,7 @@ int IsElementFree(List* list, int index)
     return 0;
 }
 
-ListErrorType ListCtorWithSpecifiedCapacity(List* ptr_list_struct, int capacity)
+ListErrorType ListCtorWithSpecifiedCapacity(List* ptr_list_struct, ssize_t capacity)
 {
     assert(ptr_list_struct);
 
@@ -40,7 +40,7 @@ ListErrorType ListCtorWithSpecifiedCapacity(List* ptr_list_struct, int capacity)
     ptr_list_struct->array[kFictiveElementIndex].next = kFictiveElementIndex;
     ptr_list_struct->array[kFictiveElementIndex].prev = kFictiveElementIndex;
 
-    for (int i = 1; i < capacity; i++)
+    for (ssize_t i = 1; i < capacity; i++)
     {
         ptr_list_struct->array[i].data = kPoison;
         ptr_list_struct->array[i].next = (i == capacity - 1) ? kFictiveElementIndex : i + 1;
@@ -53,7 +53,7 @@ ListErrorType ListCtorWithSpecifiedCapacity(List* ptr_list_struct, int capacity)
     return LIST_ERROR_NO;
 }
 
-ListErrorType ListRealloc(List* list, int new_capacity)
+ListErrorType ListRealloc(List* list, ssize_t new_capacity)
 {
     if (list == NULL)
         return LIST_NULL_POINTER;
@@ -67,13 +67,14 @@ ListErrorType ListRealloc(List* list, int new_capacity)
 
     list->array = new_array;
 
-    int old_capacity = list->capacity; //инициализируем новые элементы
-    for (int i = old_capacity; i < new_capacity; i++)
+    ssize_t old_capacity = list->capacity; //инициализируем новые элементы
+    for (ssize_t i = old_capacity; i < new_capacity; i++)
     {
         list->array[i].data = kPoison;
         list->array[i].next = (i == new_capacity - 1) ? kFictiveElementIndex : i + 1;
         list->array[i].prev = -1;
     }
+
     if (list->free == kFictiveElementIndex)
     {
         list->free = old_capacity; // если свободных не было, начинаем с первого нового элемента
@@ -81,7 +82,7 @@ ListErrorType ListRealloc(List* list, int new_capacity)
     else
     {
         // находим последний элемент в текущем списке свободных
-        int last_free = list->free;
+        ssize_t last_free = list->free;
         while (list->array[last_free].next != kFictiveElementIndex) //FIXME новое поле, которое хранит индекс последнего free, и тут к нему обращаться и не будет цикла
             last_free = list->array[last_free].next;
         // связываем последний свободный с первым новым
@@ -105,7 +106,7 @@ ListErrorType ListDtor(List* ptr_list_struct)
     return LIST_ERROR_NO;
 }
 
-ListErrorType ListInsertAfter(List* list, int target_index, int value)
+ListErrorType ListInsertAfter(List* list, ssize_t target_index, DataType value)
 {
     if (list == NULL)
         return LIST_NULL_POINTER;
@@ -123,7 +124,7 @@ ListErrorType ListInsertAfter(List* list, int target_index, int value)
             return realloc_result;
     }
 
-    int new_index = list->free;
+    ssize_t new_index = list->free;
     list->free = list->array[new_index].next;
 
     list->array[new_index].data = value;
@@ -138,27 +139,27 @@ ListErrorType ListInsertAfter(List* list, int target_index, int value)
     return LIST_ERROR_NO;
 }
 
-ListErrorType ListInsertBeforeHead(List* list, int value)
+ListErrorType ListInsertBeforeHead(List* list, DataType value)
 {
     return ListInsertAfter(list, kFictiveElementIndex, value);
 }
 
-ListErrorType ListInsertAfterTail(List* list, int value)
+ListErrorType ListInsertAfterTail(List* list, DataType value)
 {
     if (list == NULL)
         return LIST_NULL_POINTER;
 
-    int tail_index = list->array[kFictiveElementIndex].prev;
+    ssize_t tail_index = list->array[kFictiveElementIndex].prev;
 
     return ListInsertAfter(list, tail_index, value);
 }
 
-ListErrorType ListInsertTheFirstElement(List* list, int value)
+ListErrorType ListInsertTheFirstElement(List* list, DataType value)
 {
     return ListInsertAfter(list, kFictiveElementIndex, value);
 }
 
-ListErrorType ListDeleteAt(List* list, int index)
+ListErrorType ListDeleteAt(List* list, ssize_t index)
 {
     if (list == NULL)
         return LIST_NULL_POINTER;
@@ -184,12 +185,12 @@ ListErrorType ListDeleteAt(List* list, int index)
     return LIST_ERROR_NO;
 }
 
-int GetIndexOfHead(List* list)
+ssize_t GetIndexOfHead(List* list)
 {
     return list->array[kFictiveElementIndex].next;
 }
 
-int GetIndexOfTail(List* list)
+ssize_t GetIndexOfTail(List* list)
 {
     return list->array[kFictiveElementIndex].prev;
 }
@@ -248,11 +249,11 @@ void WriteListInfo(FILE* htm_file, List* list)
 {
     // Базовая инфа
     fprintf(htm_file, "<div style='margin-bottom:15px;'>\n"); //margin -- внешний отступ, padding -- внутренний
-    fprintf(htm_file, "<p><b>Capacity:</b> %d</p>\n", list->capacity);
-    fprintf(htm_file, "<p><b>Size:</b> %d</p>\n", list->size);
-    fprintf(htm_file, "<p><b>Free head:</b> %d</p>\n", list->free);
-    fprintf(htm_file, "<p><b>Head index:</b> %d</p>\n", list->array[kFictiveElementIndex].next);
-    fprintf(htm_file, "<p><b>Tail index:</b> %d</p>\n", list->array[kFictiveElementIndex].prev);
+    fprintf(htm_file, "<p><b>Capacity:</b> %ld</p>\n", list->capacity);
+    fprintf(htm_file, "<p><b>Size:</b> %ld</p>\n", list->size);
+    fprintf(htm_file, "<p><b>Free head:</b> %ld</p>\n", list->free);
+    fprintf(htm_file, "<p><b>Head index:</b> %ld</p>\n", list->array[kFictiveElementIndex].next);
+    fprintf(htm_file, "<p><b>Tail index:</b> %ld</p>\n", list->array[kFictiveElementIndex].prev);
 
     VerifyResult verify_result          = VerifyList(list);
     const char* verify_result_in_string = VerifyResultToString(verify_result);
@@ -274,7 +275,7 @@ void WriteElementsInTable(FILE* htm_file, List* list)
         ElementInList* element = &list->array[i];
         const char* status = GetElementStatus(list, i);
 
-        fprintf(htm_file, "<tr><td>%d</td><td>%d</td><td>%d</td><td>%d</td><td>%s</td></tr>\n",
+        fprintf(htm_file, "<tr><td>%d</td><td>%d</td><td>%ld</td><td>%ld</td><td>%s</td></tr>\n",
                 i, element->data, element->next, element->prev, status);
     }
 
@@ -354,7 +355,7 @@ ListErrorType GenerateDotFile(List* list, const char* filename)
     fprintf(dot_file, "    free_ptr [shape=plaintext, label=\"free\"];\n");
 
     if (list->free != 0)
-        fprintf(dot_file, "    free_ptr -> element%d [color=black];\n", list->free);
+        fprintf(dot_file, "    free_ptr -> element%ld [color=black];\n", list->free);
 
     fprintf(dot_file, "}\n");
     fclose(dot_file);
@@ -397,7 +398,7 @@ void CreateDotNodes(List* list, FILE* dot_file)
             label = "USED";
         }
 
-        fprintf(dot_file, "    element%d [label=\"{%s|{idx: %d|data: %d|next: %d|prev: %d}}\", style=filled, fillcolor=%s, color=black];\n", //Внешние фигурные скобки создают основную таблицу символ | между элементами разделяет строки таблицы; Внутренние фигурные скобки создают вложенные таблицы/ячейки Символ | внутри внутренних скобок разделяет столбцы внутри строки
+        fprintf(dot_file, "    element%d [label=\"{%s|{idx: %d|data: %d|next: %ld|prev: %ld}}\", style=filled, fillcolor=%s, color=black];\n", //Внешние фигурные скобки создают основную таблицу символ | между элементами разделяет строки таблицы; Внутренние фигурные скобки создают вложенные таблицы/ячейки Символ | внутри внутренних скобок разделяет столбцы внутри строки
             i, label, i, element->data, element->next, element->prev, color);
         }
 
@@ -413,27 +414,27 @@ void CreateInvisibleElementConnections(List* list, FILE* dot_file)
 void CreateCommonElementConnections(List* list, FILE* dot_file)
 {
     //проверяем связи и рисуем их
-    for (int i = 0; i < list->capacity; i++)
+    for (ssize_t i = 0; i < list->capacity; i++)
     {
         ElementInList* element = &list->array[i];
 
         if (IsElementFree(list, i))
             continue;
 
-        int next = element->next;
-        int prev = element->prev;
+        ssize_t next = element->next;
+        ssize_t prev = element->prev;
 
         if (next >= 0 && next < list->capacity)
         {
             if (list->array[next].prev == i) //чекаем двустороннюю связь //FIXME
-                fprintf(dot_file, "    element%d -> element%d [color=black, constraint=false, arrowhead=normal, arrowtail=normal, dir=both];\n", i, next);
+                fprintf(dot_file, "    element%ld -> element%ld [color=black, constraint=false, arrowhead=normal, arrowtail=normal, dir=both];\n", i, next);
             else
             {
-                fprintf(dot_file, "    element%d -> element%d [color=blue, label=\"next\", constraint=false];\n", i, next);
+                fprintf(dot_file, "    element%ld -> element%ld [color=blue, label=\"next\", constraint=false];\n", i, next);
 
-                fprintf(dot_file, "    error_prev_%d [shape=ellipse, style=filled, fillcolor=orange, label=\"Prev Error: element%d->next=%d\\nbut element%d->prev=%d\"];\n",
+                fprintf(dot_file, "    error_prev_%ld [shape=ellipse, style=filled, fillcolor=orange, label=\"Prev Error: element%ld->next=%ld\\nbut element%ld->prev=%ld\"];\n",
                         i, i, next, next, list->array[next].prev);
-                fprintf(dot_file, "    error_prev_%d -> element%d [color=red, style=dashed];\n", i, next);
+                fprintf(dot_file, "    error_prev_%ld -> element%ld [color=red, style=dashed];\n", i, next);
             }
         }
 
@@ -442,11 +443,11 @@ void CreateCommonElementConnections(List* list, FILE* dot_file)
             // для prev связи проверяем только неправильные случаи, так как правильные уже нарисованы и будет дублирнование
             if (list->array[prev].next != i)
             {
-                fprintf(dot_file, "    element%d -> element%d [color=red, label=\"prev\", constraint=false];\n", i, prev);
+                fprintf(dot_file, "    element%ld -> element%ld [color=red, label=\"prev\", constraint=false];\n", i, prev);
 
-                fprintf(dot_file, "    error_next_%d [shape=ellipse, style=filled, fillcolor=yellow, label=\"Next Error: element%d->prev=%d\\nbut element%d->next=%d\"];\n",
+                fprintf(dot_file, "    error_next_%ld [shape=ellipse, style=filled, fillcolor=yellow, label=\"Next Error: element%ld->prev=%ld\\nbut element%ld->next=%ld\"];\n",
                         i, i, prev, prev, list->array[prev].next);
-                fprintf(dot_file, "    error_next_%d -> element%d [color=blue, style=dashed];\n", i, prev);
+                fprintf(dot_file, "    error_next_%ld -> element%ld [color=blue, style=dashed];\n", i, prev);
             }
         }
     }
@@ -455,12 +456,12 @@ void CreateCommonElementConnections(List* list, FILE* dot_file)
 void CreateFreeElementConnections(List* list, FILE* dot_file)
 {
     fprintf(dot_file, "\n");
-    int free_idx = list->free;
+    ssize_t free_idx = list->free;
     while (free_idx != 0 && free_idx < list->capacity)
     {
         ElementInList* element = &list->array[free_idx];
         if (element->next != 0)
-            fprintf(dot_file, "    element%d -> element%d [color=gray, label=\"free\", constraint=false];\n", free_idx, element->next);
+            fprintf(dot_file, "    element%ld -> element%ld [color=gray, label=\"free\", constraint=false];\n", free_idx, element->next);
         free_idx = element->next;
     }
 }
@@ -532,30 +533,33 @@ VerifyResult DetectCycle(List* list)
     if (list == NULL || list->size == 0)
         return VERIFY_SUCCESS;
 
-    int current = kFictiveElementIndex; // идем с фиктивного элемента
-    int steps = 0;
+    ssize_t current_by_next = kFictiveElementIndex; // идем с фиктивного элемента
+    ssize_t current_by_prev = kFictiveElementIndex;
+    ssize_t steps = 0;
 
     // идем size + 1 шагов
     while (steps <= list->size)
     {
-        current = list->array[current].next;
+        current_by_next = list->array[current_by_next].next;
+        current_by_prev = list->array[current_by_prev].prev;
 
-        if (current < 0 || current >= list->capacity)
+        if (current_by_next < 0 || current_by_next >= list->capacity ||
+            current_by_prev < 0 || current_by_prev >= list->capacity)
             return VERIFY_INVALID_INDEX;
 
         steps++;
 
         // слишком рано встретили фиктивный элемент, значит, ошибка
-        if (current == kFictiveElementIndex && steps <= list->size)
+        if ((current_by_next == kFictiveElementIndex || current_by_prev == kFictiveElementIndex) && steps <= list->size)
             return VERIFY_CYCLE_DETECTED;
 
         // если встретили фиктивный элемент ровно на шаге size + 1, то все ок
-        if (current == kFictiveElementIndex && steps == list->size + 1)
+        if (current_by_next == kFictiveElementIndex && current_by_prev == kFictiveElementIndex && steps == list->size + 1)
             break;
     }
 
     // НАДО ПРОВЕРИТЬ, ЧТО МЫ ВЫШЛИ ИМЕННО ПО БРЕЙКУ, А НЕ ПРОСТО!!!!!
-    if (current != kFictiveElementIndex)
+    if (current_by_next != kFictiveElementIndex || current_by_prev != kFictiveElementIndex)
         return VERIFY_CYCLE_DETECTED;
 
     return VERIFY_SUCCESS;
@@ -572,21 +576,21 @@ VerifyResult VerifyList(List* list)
 
     if (list->size > 0)
     {
-        int head_index = list->array[kFictiveElementIndex].next;
-        int tail_index = list->array[kFictiveElementIndex].prev;
+        ssize_t head_index = list->array[kFictiveElementIndex].next;
+        ssize_t tail_index = list->array[kFictiveElementIndex].prev;
 
         if (list->array[tail_index].next != kFictiveElementIndex)
             return VERIFY_TAIL_NEXT_ERROR;
         if (list->array[head_index].prev != kFictiveElementIndex)
             return VERIFY_HEAD_PREV_ERROR;
 
-        int current = head_index; //начинаем обходить с головы
-        int count = 0;
+        ssize_t current = head_index; //начинаем обходить с головы
+        ssize_t count = 0;
 
         // чекаем узлы
         while (count < list->size)
         {
-            int next = list->array[current].next;
+            ssize_t next = list->array[current].next;
             if (next < 0 || next >= list->capacity)
                 return VERIFY_INVALID_INDEX;
 

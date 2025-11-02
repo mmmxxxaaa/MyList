@@ -16,36 +16,36 @@ typedef int DataType;
 
 typedef struct {
     DataType data;
-    int next;
-    int prev;
+    ssize_t next;
+    ssize_t prev;
 } ElementInList;
 
 typedef struct {
     ElementInList* array;
-    int free;
-    int capacity;
-    int size;
+    ssize_t free;
+    ssize_t capacity;
+    ssize_t size;
 } List;
 
 const DataType kPoison                      = 525252;
 const int      kMaxLengthOfFilename         = 256;
 const int      kMaxSystemCommandLength      = 512;
-const int      kFictiveElementIndex         = 0;
+const ssize_t   kFictiveElementIndex         = 0;
 const int      kCapacityIncreaseCoefficient = 2;
 
-int IsElementFree(List* list, int index);
+int IsElementFree(List* list, ssize_t index);
 
-ListErrorType ListCtorWithSpecifiedCapacity(List* ptr_list_struct, int capacity);
+ListErrorType ListCtorWithSpecifiedCapacity(List* ptr_list_struct, ssize_t capacity);
 ListErrorType ListDtor(List* ptr_list_struct);
-ListErrorType ListRealloc(List* list, int new_capacity);
+ListErrorType ListRealloc(List* list, ssize_t new_capacity);
 
-ListErrorType ListInsertAfter          (List* list, int target_index, int value);
-ListErrorType ListDeleteAt             (List* list, int index);
-ListErrorType ListInsertBeforeHead     (List* list, int value); //для программиста же неочевидно, что надо писать ListInsertAfter(&list, 0, value)
-ListErrorType ListInsertAfterTail      (List* list, int value);
-ListErrorType ListInsertTheFirstElement(List* list, int value); //для программиста же неочевидно, что надо писать ListInsertAfter(&list, 0, value)
-DataType      GetIndexOfHead(List* list);
-DataType      GetIndexOfTail(List* list);
+ListErrorType ListInsertAfter          (List* list, ssize_t target_index, DataType value);
+ListErrorType ListDeleteAt             (List* list, ssize_t index);
+ListErrorType ListInsertBeforeHead     (List* list, DataType value); //для программиста же неочевидно, что надо писать ListInsertAfter(&list, 0, value)
+ListErrorType ListInsertAfterTail      (List* list, DataType value);
+ListErrorType ListInsertTheFirstElement(List* list, DataType value); //для программиста же неочевидно, что надо писать ListInsertAfter(&list, 0, value)
+ssize_t       GetIndexOfHead(List* list);
+ssize_t       GetIndexOfTail(List* list);
 
 //====================DUMP=======================================
 ListErrorType ListDump(List* ptr_list_struct, const char* filename);
@@ -67,7 +67,7 @@ void CreateFreeElementConnections(List* list, FILE* dor_file);
 
 ListErrorType InitListLog(const char* filename);
 ListErrorType CloseListLog(const char* filename);
-//FIXME в нормальном случае стрелочки должны быть двойными и черными (см тетрадь короче)
+
 const char* VerifyResultToString(VerifyResult result);
 VerifyResult DetectCycle(List* list);
 VerifyResult VerifyList(List* list);

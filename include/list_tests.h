@@ -10,10 +10,9 @@ void TestReallocation();
 void TestReuseAfterDelete();
 void TestDumpWithBeautifulErrorPrevVisualization();
 void TestDumpWithBeautifulErrorNextVisualization();
-
+void TestDumpWithCycleInList();
 
 void AllTests();
-
 
 
 #endif // LIST_UNIT_TESTS_H_

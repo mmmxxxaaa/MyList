@@ -25,4 +25,6 @@ typedef enum {
     VERIFY_EMPTY_LIST_LINKS_ERROR,
     VERIFY_CYCLE_DETECTED
 } VerifyResult;
+
+
 #endif //LIST_ERROR_TYPES_H_

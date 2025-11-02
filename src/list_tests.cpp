@@ -15,7 +15,7 @@ void TestFirstInsert()
     InitListLog(folder_name);
 
     ListDump(&list, folder_name);
-    ListErrorType result = ListInsertTheFirstElement(&list, 100);
+    ListInsertTheFirstElement(&list, 100);
     ListDump(&list, folder_name);
 
     CloseListLog(folder_name);
@@ -67,7 +67,7 @@ void TestDeleteHead()
     ListInsertAfter(&list, 2, 30);
 
     ListDump(&list, folder_name);
-    ListErrorType result = ListDeleteAt(&list, 1);
+    ListDeleteAt(&list, 1);
     ListDump(&list, folder_name);
     CloseListLog(folder_name);
 
@@ -88,7 +88,7 @@ void TestDeleteTail()
     ListInsertAfter(&list, 2, 30);
 
     ListDump(&list, folder_name);
-    ListErrorType result = ListDeleteAt(&list, 3);
+    ListDeleteAt(&list, 3);
     ListDump(&list, folder_name);
 
     CloseListLog(folder_name);
@@ -107,7 +107,7 @@ void TestDeleteLastRemainingElement()
     ListInsertTheFirstElement(&list, 100);
     ListDump(&list, folder_name);
 
-    ListErrorType result = ListDeleteAt(&list, 1);
+    ListDeleteAt(&list, 1);
     ListDump(&list, folder_name);
 
     CloseListLog(folder_name);
@@ -127,7 +127,7 @@ void TestReallocation()
     ListInsertAfter(&list, 1, 20);
     ListDump(&list, folder_name);
 
-    ListErrorType result = ListInsertAfter(&list, 2, 30);
+    ListInsertAfter(&list, 2, 30);
     ListDump(&list, folder_name);
 
     CloseListLog(folder_name);
@@ -206,6 +206,32 @@ void TestDumpWithBeautifulErrorNextVisualization()
     ListDtor(&list);
 }
 
+void TestDumpWithCycleInList()
+{
+    List list = {};
+    ListCtorWithSpecifiedCapacity(&list, 5);
+
+    const char* folder_name = "log_TestDumpWithCycleInList";
+    InitListLog(folder_name);
+
+    ListInsertTheFirstElement(&list, 10);
+    ListInsertAfter(&list, 1, 20);
+    ListInsertAfter(&list, 2, 30);
+    ListInsertAfter(&list, 3, 40);
+    ListInsertAfter(&list, 4, 50);
+    ListInsertAfter(&list, 5, 60);
+    ListInsertAfter(&list, 6, 70);
+    ListDump(&list, folder_name);
+
+    list.array[6].next = 2;
+
+    ListDump(&list, folder_name);
+
+    CloseListLog(folder_name);
+    ListDtor(&list);
+}
+
+
 void AllTests()
 {
     TestFirstInsert();
@@ -217,6 +243,7 @@ void AllTests()
     TestReallocation();
     TestDumpWithBeautifulErrorPrevVisualization();
     TestDumpWithBeautifulErrorNextVisualization();
+    TestDumpWithCycleInList();
 }
 
 //FIXME добавить вручную испорченные дампы и проверить его верификатором и задампить
