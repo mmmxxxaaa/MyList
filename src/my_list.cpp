@@ -213,10 +213,39 @@ ListErrorType ListDump(List* list, const char* filename)
     if (!htm_file)
         return LIST_ERROR_OPENING_FILE;
 
+    ListErrorType result = ListDumpToHtm(list, htm_file, folder_name);
+
+    fclose(htm_file);
+
+    return result;
+    //FIXME где-то потерял fprintf(dot_file, "\n");
+}
+
+ListErrorType ListDumpToHtm(List* list, FILE* htm_file, const char* folder_name)
+{
     time_t now = time(NULL);
+
+    WriteDumpHeader(htm_file, now);
+
+    WriteListInfo(htm_file, list);
+
+    GenerateGraphVisualization(list, htm_file, folder_name, now);
+
+    WriteElementsInTable(htm_file, list);
+
+    fprintf(htm_file, "</div>\n\n");
+
+    return LIST_ERROR_NO;
+}
+
+void WriteDumpHeader(FILE* htm_file, time_t now)
+{
     fprintf(htm_file, "<div style='border:2px solid #ccc; margin:10px; padding:15px; background:#f9f9f9;'>\n"); //создает красивый контейнер для одного дампа
     fprintf(htm_file, "<h2 style='color:#333;'>List Dump at %s</h2>\n", ctime(&now)); //время дампа
+}
 
+void WriteListInfo(FILE* htm_file, List* list)
+{
     // Базовая инфа
     fprintf(htm_file, "<div style='margin-bottom:15px;'>\n"); //margin -- внешний отступ, padding -- внутренний
     fprintf(htm_file, "<p><b>Capacity:</b> %d</p>\n", list->capacity);
@@ -232,27 +261,109 @@ ListErrorType ListDump(List* list, const char* filename)
             verify_color, verify_result_in_string);
 
     fprintf(htm_file, "</div>\n");
+}
 
+void WriteElementsInTable(FILE* htm_file, List* list)
+{
+    // таблица элементов //FIXME
+    fprintf(htm_file, "<table border='1' style='border-collapse:collapse; width:100%%; margin-top:15px;'>\n"); //collapse -- убирает двойные линии в ячйеках
+    fprintf(htm_file, "<tr><th>Index</th><th>Data</th><th>Next</th><th>Prev</th><th>Status</th></tr>\n");
+
+    for (int i = 0; i < list->capacity; i++)
+    {
+        ElementInList* element = &list->array[i];
+        const char* status = GetElementStatus(list, i);
+
+        fprintf(htm_file, "<tr><td>%d</td><td>%d</td><td>%d</td><td>%d</td><td>%s</td></tr>\n",
+                i, element->data, element->next, element->prev, status);
+    }
+
+    fprintf(htm_file, "</table>\n");
+}
+
+const char* GetElementStatus(List* list, int index)
+{
+    if (index == 0)
+        return "FICTIVE";
+    else if (index == list->array[kFictiveElementIndex].next && index == list->array[kFictiveElementIndex].prev)
+        return  "HEAD/TAIL";
+    else if (index == list->array[kFictiveElementIndex].next)
+        return "HEAD";
+    else if (index == list->array[kFictiveElementIndex].prev)
+        return "TAIL";
+    else if (!IsElementFree(list, index))
+        return "USED";
+    else
+        return "FREE";
+}
+
+//==========================================DOT=====================================================
+ListErrorType GenerateGraphVisualization(List* list, FILE* htm_file, const char* folder_name, time_t now)
+{
     static int n_of_pictures = 0;
     char temp_dot[kMaxLengthOfFilename] = {};
     char temp_svg[kMaxLengthOfFilename] = {};
+
     snprintf(temp_dot, sizeof(temp_dot), "%s/temp_%d%ld.dot",folder_name, n_of_pictures, now);
     snprintf(temp_svg, sizeof(temp_svg), "%s/temp_%d%ld.svg",folder_name, n_of_pictures, now);
     n_of_pictures++;
 
-    FILE* dot_file = fopen(temp_dot, "w");
-    if (!dot_file)
+    ListErrorType dot_result = GenerateDotFile(list, temp_dot);
+    if (dot_result != LIST_ERROR_NO)
+        return dot_result;
+
+    char command[kMaxSystemCommandLength] = {};
+    snprintf(command, sizeof(command), "dot -Tsvg %s -o %s", temp_dot, temp_svg);
+    int result = system(command);
+
+    if (result == 0)
     {
-        fclose(htm_file);
-        return LIST_ERROR_OPENING_FILE;
+        fprintf(htm_file, "<div style='text-align:center;'>\n");
+        fprintf(htm_file, "<img src='%s' style='max-width:100%%; border:1px solid #ddd;'>\n", temp_svg);
+        fprintf(htm_file, "</div>\n");
+    }
+    else
+    {
+        fprintf(htm_file, "<p style='color:red;'>Error generating SVG graph</p>\n");
     }
 
-//FIXME на функции разнести
-//==============================РАБОТА С DOT========================================================
+    remove(temp_dot);
+    // remove(temp_svg);
+
+    return LIST_ERROR_NO;
+}
+
+ListErrorType GenerateDotFile(List* list, const char* filename)
+{
+    FILE* dot_file = fopen(filename, "w");
+    if (!dot_file)
+        return LIST_ERROR_OPENING_FILE;
+
     fprintf(dot_file, "digraph DoublyLinkedList {\n");
     fprintf(dot_file, "    rankdir=LR;\n");
     fprintf(dot_file, "    node [shape=Mrecord, color = black];\n\n");
 
+    CreateDotNodes(list, dot_file);
+
+    CreateInvisibleElementConnections(list, dot_file);
+
+    CreateCommonElementConnections(list, dot_file);
+
+    CreateFreeElementConnections(list, dot_file);
+
+    fprintf(dot_file, "    free_ptr [shape=plaintext, label=\"free\"];\n");
+
+    if (list->free != 0)
+        fprintf(dot_file, "    free_ptr -> element%d [color=black];\n", list->free);
+
+    fprintf(dot_file, "}\n");
+    fclose(dot_file);
+
+    return LIST_ERROR_NO;
+}
+
+void CreateDotNodes(List* list, FILE* dot_file)
+{
     for (int i = 0; i < list->capacity; i++)
     {
         ElementInList* element = &list->array[i];
@@ -260,7 +371,7 @@ ListErrorType ListDump(List* list, const char* filename)
         const char* label = "FREE";
         int is_free = IsElementFree(list, i);
 
-        if (i == 0)
+        if (i == kFictiveElementIndex)
         {
             color = "lightcoral";
             label = "FICTIVE";
@@ -287,15 +398,21 @@ ListErrorType ListDump(List* list, const char* filename)
         }
 
         fprintf(dot_file, "    element%d [label=\"{%s|{idx: %d|data: %d|next: %d|prev: %d}}\", style=filled, fillcolor=%s, color=black];\n", //Внешние фигурные скобки создают основную таблицу символ | между элементами разделяет строки таблицы; Внутренние фигурные скобки создают вложенные таблицы/ячейки Символ | внутри внутренних скобок разделяет столбцы внутри строки
-                i, label, i, element->data, element->next, element->prev, color);
-    }
+            i, label, i, element->data, element->next, element->prev, color);
+        }
 
     fprintf(dot_file, "\n");
+}
 
+void CreateInvisibleElementConnections(List* list, FILE* dot_file)
+{
     for (int i = 0; i < list->capacity - 1; i++)
         fprintf(dot_file, "    element%d -> element%d [weight=100000, style=invis, color=white];\n", i, i+1);
+}
 
-//проверяем связи и рисуем их
+void CreateCommonElementConnections(List* list, FILE* dot_file)
+{
+    //проверяем связи и рисуем их
     for (int i = 0; i < list->capacity; i++)
     {
         ElementInList* element = &list->array[i];
@@ -333,7 +450,10 @@ ListErrorType ListDump(List* list, const char* filename)
             }
         }
     }
+}
 
+void CreateFreeElementConnections(List* list, FILE* dot_file)
+{
     fprintf(dot_file, "\n");
     int free_idx = list->free;
     while (free_idx != 0 && free_idx < list->capacity)
@@ -343,64 +463,6 @@ ListErrorType ListDump(List* list, const char* filename)
             fprintf(dot_file, "    element%d -> element%d [color=gray, label=\"free\", constraint=false];\n", free_idx, element->next);
         free_idx = element->next;
     }
-
-    fprintf(dot_file, "\n");
-    fprintf(dot_file, "    free_ptr [shape=plaintext, label=\"free\"];\n");
-
-    if (list->free != 0)
-        fprintf(dot_file, "    free_ptr -> element%d [color=black];\n", list->free);
-
-    fprintf(dot_file, "}\n");
-    fclose(dot_file);
-//==================================================================================================
-
-    // создаем картинки
-    snprintf(command, sizeof(command), "dot -Tsvg %s -o %s", temp_dot, temp_svg);
-    int result = system(command);
-
-    if (result == 0)
-    {
-        fprintf(htm_file, "<div style='text-align:center;'>\n");
-        fprintf(htm_file, "<img src='%s' style='max-width:100%%; border:1px solid #ddd;'>\n", temp_svg);
-        fprintf(htm_file, "</div>\n");
-    }
-    else
-        fprintf(htm_file, "<p style='color:red;'>Error generating SVG graph</p>\n");
-
-    // таблица элементов //FIXME
-    fprintf(htm_file, "<table border='1' style='border-collapse:collapse; width:100%%; margin-top:15px;'>\n");
-    fprintf(htm_file, "<tr><th>Index</th><th>Data</th><th>Next</th><th>Prev</th><th>Status</th></tr>\n");
-
-    for (int i = 0; i < list->capacity; i++)
-    {
-        ElementInList* element = &list->array[i];
-        const char* status = "FREE";
-
-        if (i == 0)
-            status = "FICTIVE";
-        else if (i == list->array[kFictiveElementIndex].next && i == list->array[kFictiveElementIndex].prev)
-            status = "HEAD/TAIL";
-        else if (i == list->array[kFictiveElementIndex].next)
-            status = "HEAD";
-        else if (i == list->array[kFictiveElementIndex].prev)
-            status = "TAIL";
-        else if (!IsElementFree(list, i))
-            status = "USED";
-
-        fprintf(htm_file, "<tr><td>%d</td><td>%d</td><td>%d</td><td>%d</td><td>%s</td></tr>\n",
-                i, element->data, element->next, element->prev, status);
-    }
-
-    fprintf(htm_file, "</table>\n");
-    fprintf(htm_file, "</div>\n\n");
-
-    fclose(htm_file);
-
-    remove(temp_dot);
-    // remove(temp_svg);
-
-    printf("Данные добавлены в лог-файл: %s\n", filename);
-    return LIST_ERROR_NO;
 }
 
 ListErrorType InitListLog(const char* filename)
@@ -498,7 +560,7 @@ VerifyResult DetectCycle(List* list)
 
     return VERIFY_SUCCESS;
 }
-//FIXME в дампе выводить результат верификатора
+
 VerifyResult VerifyList(List* list)
 {
     if (list == NULL)

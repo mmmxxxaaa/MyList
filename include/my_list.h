@@ -2,6 +2,7 @@
 #define MY_LIST_H_
 
 #include <stdio.h>
+#include <time.h>
 #include "list_error_types.h"
 
 
@@ -46,8 +47,24 @@ ListErrorType ListInsertTheFirstElement(List* list, int value); //для про�
 DataType      GetIndexOfHead(List* list);
 DataType      GetIndexOfTail(List* list);
 
-
+//====================DUMP=======================================
 ListErrorType ListDump(List* ptr_list_struct, const char* filename);
+//---------------HTM-----------------------
+ListErrorType ListDumpToHtm(List* list, FILE* htm_file, const char* folder_name);
+void WriteDumpHeader(FILE* htm_file, time_t now);
+void WriteListInfo(FILE* htm_file, List* list);
+void WriteElementsInTable(FILE* htm_file, List* list);
+const char* GetElementStatus(List* list, int index);
+//----------------DOT-------------------------------
+ListErrorType GenerateGraphVisualization(List* list, FILE* htm_file, const char* folder_name, time_t now);
+ListErrorType GenerateDotFile(List* list, const char* filename);
+void CreateDotNodes(List* list, FILE* dot_file);
+void CreateInvisibleElementConnections(List* list, FILE* dot_file);
+void CreateCommonElementConnections(List* list, FILE* dot_file);
+void CreateFreeElementConnections(List* list, FILE* dor_file);
+//==================================================================
+
+
 ListErrorType InitListLog(const char* filename);
 ListErrorType CloseListLog(const char* filename);
 //FIXME в нормальном случае стрелочки должны быть двойными и черными (см тетрадь короче)
