@@ -397,15 +397,19 @@ ListErrorType ListDump(List* list, const char* filename)
     assert(list);
     assert(filename);
 
-    char folder_name[kMaxLengthOfFilename] = {};
-    snprintf(folder_name, sizeof(folder_name), "%s_dump", filename);
-
     char command[kMaxSystemCommandLength] = {};
+    snprintf(command, sizeof(command), "mkdir -p %s", kGeneralFolderNameForLogs);
+    system(command);
+
+    char folder_name[kMaxLengthOfFilename] = {};
+    snprintf(folder_name, sizeof(folder_name), "%s/%s_dump", kGeneralFolderNameForLogs, filename);
+
+    // char command[kMaxSystemCommandLength] = {};
     snprintf(command, sizeof(command), "mkdir -p %s", folder_name);
     system(command);
 
     char htm_filename[kMaxLengthOfFilename] = {};
-    snprintf(htm_filename, sizeof(htm_filename), "%s.htm", filename);
+    snprintf(htm_filename, sizeof(htm_filename), "%s/%s.htm", kGeneralFolderNameForLogs, filename);
 
     FILE* htm_file = fopen(htm_filename, "a");
     if (!htm_file)
@@ -417,7 +421,7 @@ ListErrorType ListDump(List* list, const char* filename)
 
     return result;
 }
-//FIXME предварительно создать папку logs
+
 ListErrorType ListDumpToHtm(List* list, FILE* htm_file, const char* folder_name)
 {
     assert(list);
@@ -700,7 +704,7 @@ ListErrorType InitListLog(const char* filename)
     assert(filename);
 
     char htm_filename[kMaxLengthOfFilename] = {};
-    snprintf(htm_filename, sizeof(htm_filename), "%s.htm", filename);
+    snprintf(htm_filename, sizeof(htm_filename), "%s/%s.htm", kGeneralFolderNameForLogs, filename); //FIXME вынести logs в отдельную строковую константу
 
     FILE* htm_file = fopen(htm_filename, "w");
     if (!htm_file)
@@ -729,7 +733,7 @@ ListErrorType CloseListLog(const char* filename)
     assert(filename);
 
     char htm_filename[kMaxLengthOfFilename] = {};
-    snprintf(htm_filename, sizeof(htm_filename), "%s.htm", filename);
+    snprintf(htm_filename, sizeof(htm_filename), "%s/%s.htm", kGeneralFolderNameForLogs, filename);
 
     FILE* htm_file = fopen(htm_filename, "a");
     if (!htm_file)

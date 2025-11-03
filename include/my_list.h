@@ -28,11 +28,12 @@ typedef struct {
 } List;
 //ХУЙНЯ хранить наибольший индекс USED и при реаллокации вниз освобождать все те индексы, которые правее used
         //тогда DeleteAt будет O(n), поэтому лучше находить этот max_used_index в функции реаллокации вниз
-const DataType kPoison                      = 525252;
-const int      kMaxLengthOfFilename         = 256;
-const int      kMaxSystemCommandLength      = 512;
-const ssize_t   kFictiveElementIndex        = 0;
-const int      kCapacityIncreaseCoefficient = 2;
+const DataType     kPoison                      = 525252;
+const int          kMaxLengthOfFilename         = 256;
+const int          kMaxSystemCommandLength      = 512;
+const ssize_t      kFictiveElementIndex         = 0;
+const int          kCapacityIncreaseCoefficient = 2;
+static const char* kGeneralFolderNameForLogs    = "logs"; //без статика проблемы с линковкой
 
 int IsElementFree(List* list, ssize_t index);
 
