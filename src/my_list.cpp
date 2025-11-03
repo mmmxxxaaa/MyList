@@ -187,11 +187,15 @@ ListErrorType ListDeleteAt(List* list, ssize_t index)
 
 ssize_t GetIndexOfHead(List* list)
 {
+    assert(list);
+
     return list->array[kFictiveElementIndex].next;
 }
 
 ssize_t GetIndexOfTail(List* list)
 {
+    assert(list);
+
     return list->array[kFictiveElementIndex].prev;
 }
 
@@ -224,6 +228,10 @@ ListErrorType ListDump(List* list, const char* filename)
 
 ListErrorType ListDumpToHtm(List* list, FILE* htm_file, const char* folder_name)
 {
+    assert(list);
+    assert(htm_file);
+    assert(folder_name);
+
     time_t now = time(NULL);
 
     WriteDumpHeader(htm_file, now);
@@ -241,12 +249,17 @@ ListErrorType ListDumpToHtm(List* list, FILE* htm_file, const char* folder_name)
 
 void WriteDumpHeader(FILE* htm_file, time_t now)
 {
+    assert(htm_file);
+
     fprintf(htm_file, "<div style='border:2px solid #ccc; margin:10px; padding:15px; background:#f9f9f9;'>\n"); //создает красивый контейнер для одного дампа
     fprintf(htm_file, "<h2 style='color:#333;'>List Dump at %s</h2>\n", ctime(&now)); //время дампа
 }
 
 void WriteListInfo(FILE* htm_file, List* list)
 {
+    assert(htm_file)
+    assert(list)
+
     // Базовая инфа
     fprintf(htm_file, "<div style='margin-bottom:15px;'>\n"); //margin -- внешний отступ, padding -- внутренний
     fprintf(htm_file, "<p><b>Capacity:</b> %ld</p>\n", list->capacity);
@@ -266,6 +279,9 @@ void WriteListInfo(FILE* htm_file, List* list)
 
 void WriteElementsInTable(FILE* htm_file, List* list)
 {
+    assert(htm_file);
+    assert(list);
+
     // таблица элементов //FIXME
     fprintf(htm_file, "<table border='1' style='border-collapse:collapse; width:100%%; margin-top:15px;'>\n"); //collapse -- убирает двойные линии в ячйеках
     fprintf(htm_file, "<tr><th>Index</th><th>Data</th><th>Next</th><th>Prev</th><th>Status</th></tr>\n");
@@ -284,6 +300,8 @@ void WriteElementsInTable(FILE* htm_file, List* list)
 
 const char* GetElementStatus(List* list, int index)
 {
+    assert(list);
+
     if (index == 0)
         return "FICTIVE";
     else if (index == list->array[kFictiveElementIndex].next && index == list->array[kFictiveElementIndex].prev)
@@ -301,6 +319,10 @@ const char* GetElementStatus(List* list, int index)
 //==========================================DOT=====================================================
 ListErrorType GenerateGraphVisualization(List* list, FILE* htm_file, const char* folder_name, time_t now)
 {
+    assert(list);
+    assert(htm_file);
+    assert(folder_name);
+
     static int n_of_pictures = 0;
     char temp_dot[kMaxLengthOfFilename] = {};
     char temp_svg[kMaxLengthOfFilename] = {};
@@ -336,6 +358,9 @@ ListErrorType GenerateGraphVisualization(List* list, FILE* htm_file, const char*
 
 ListErrorType GenerateDotFile(List* list, const char* filename)
 {
+    assert(list);
+    assert(filename);
+
     FILE* dot_file = fopen(filename, "w");
     if (!dot_file)
         return LIST_ERROR_OPENING_FILE;
@@ -365,6 +390,9 @@ ListErrorType GenerateDotFile(List* list, const char* filename)
 
 void CreateDotNodes(List* list, FILE* dot_file)
 {
+    assert(list);
+    assert(dor_file);
+
     for (int i = 0; i < list->capacity; i++)
     {
         ElementInList* element = &list->array[i];
@@ -407,12 +435,18 @@ void CreateDotNodes(List* list, FILE* dot_file)
 
 void CreateInvisibleElementConnections(List* list, FILE* dot_file)
 {
+    assert(list);
+    assert(dot_file);
+
     for (int i = 0; i < list->capacity - 1; i++)
         fprintf(dot_file, "    element%d -> element%d [weight=100000, style=invis, color=white];\n", i, i+1);
 }
 
 void CreateCommonElementConnections(List* list, FILE* dot_file)
 {
+    assert(list);
+    assert(dot_file);
+
     //проверяем связи и рисуем их
     for (ssize_t i = 0; i < list->capacity; i++)
     {
@@ -455,19 +489,24 @@ void CreateCommonElementConnections(List* list, FILE* dot_file)
 
 void CreateFreeElementConnections(List* list, FILE* dot_file)
 {
+    assert(list);
+    assert(dot_file);
+
     fprintf(dot_file, "\n");
     ssize_t free_idx = list->free;
     while (free_idx != 0 && free_idx < list->capacity)
     {
         ElementInList* element = &list->array[free_idx];
         if (element->next != 0)
-            fprintf(dot_file, "    element%ld -> element%ld [color=gray, label=\"free\", constraint=false];\n", free_idx, element->next);
+            fprintf(dot_file, "    element%ld -> element%ld [color=green, label=\"free\", constraint=false];\n", free_idx, element->next);
         free_idx = element->next;
     }
 }
 
 ListErrorType InitListLog(const char* filename)
 {
+    assert(filename);
+
     char htm_filename[kMaxLengthOfFilename] = {};
     snprintf(htm_filename, sizeof(htm_filename), "%s.htm", filename);
 
@@ -495,6 +534,8 @@ ListErrorType InitListLog(const char* filename)
 
 ListErrorType CloseListLog(const char* filename)
 {
+    assert(filename);
+
     char htm_filename[kMaxLengthOfFilename] = {};
     snprintf(htm_filename, sizeof(htm_filename), "%s.htm", filename);
 

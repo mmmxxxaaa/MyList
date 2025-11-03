@@ -2,7 +2,7 @@
 
 #include <assert.h>
 #include <stdio.h>
-
+//FIXME табами выровнять логи
 #include "my_list.h"
 
 //Вставка первого элемента в пустой список
