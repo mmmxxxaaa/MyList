@@ -230,7 +230,7 @@ void TestDumpWithCycleInList()
     CloseListLog(folder_name);
     ListDtor(&list);
 }
-//FIXME посмотреть как htm получает картинки именно из папки
+
 void TestLinearize()
 {
     List list;
@@ -341,4 +341,4 @@ void AllTests()
     TestListReallocDownAsPossibleAsYouCan();
 }
 
-//FIXME добавить вручную испорченные дампы и проверить его верификатором и задампить
+

@@ -28,19 +28,19 @@ typedef struct {
 } List;
 //ХУЙНЯ хранить наибольший индекс USED и при реаллокации вниз освобождать все те индексы, которые правее used
         //тогда DeleteAt будет O(n), поэтому лучше находить этот max_used_index в функции реаллокации вниз
-const DataType     kPoison                      = 525252;
-const int          kMaxLengthOfFilename         = 256;
-const int          kMaxSystemCommandLength      = 512;
-const ssize_t      kFictiveElementIndex         = 0;
-const int          kCapacityIncreaseCoefficient = 2;
-static const char* kGeneralFolderNameForLogs    = "logs"; //без статика проблемы с линковкой
+const DataType    kPoison                      = 525252;
+const int         kMaxLengthOfFilename         = 256;
+const int         kMaxSystemCommandLength      = 512;
+const ssize_t     kFictiveElementIndex         = 0;
+const int         kCapacityIncreaseCoefficient = 2;
+const char* const kGeneralFolderNameForLogs    = "logs"; //без статика проблемы с линковкой
 
 int IsElementFree(List* list, ssize_t index);
 
 ListErrorType ListCtorWithSpecifiedCapacity(List* ptr_list_struct, ssize_t capacity);
 ListErrorType ListDtor                     (List* ptr_list_struct);
 
-ssize_t       FindMaxUsedIndexInList (List* list);
+ssize_t       FindMaxUsedIndex       (List* list);
 ListErrorType ListReallocUp          (List* list, ssize_t new_capacity);
 ListErrorType ListReallocDown        (List* list, ssize_t new_capacity);
 ListErrorType ListReallocDownAsPossibleAsYouCan(List* list);
@@ -62,13 +62,13 @@ ssize_t       GetIndexOfTail(List* list);
 //====================DUMP=========================================
 ListErrorType ListDump(List* ptr_list_struct, const char* filename);
 //---------------HTM-----------------------------------------------
-ListErrorType ListDumpToHtm(List* list, FILE* htm_file, const char* folder_name);
+ListErrorType ListDumpToHtm(List* list, FILE* htm_file, const char* folder_path, const char* folder_name);
 void WriteDumpHeader(FILE* htm_file, time_t now);
 void WriteListInfo(FILE* htm_file, List* list);
 void WriteElementsInTable(FILE* htm_file, List* list);
 const char* GetElementStatus(List* list, int index);
 //----------------DOT-----------------------------------------------
-ListErrorType GenerateGraphVisualization(List* list, FILE* htm_file, const char* folder_name, time_t now);
+ListErrorType GenerateGraphVisualization(List* list, FILE* htm_file, const char* folder_path, const char* folder_name, time_t now);
 ListErrorType GenerateDotFile(List* list, const char* filename);
 void CreateDotNodes(List* list, FILE* dot_file);
 void CreateInvisibleElementConnections(List* list, FILE* dot_file);
@@ -80,7 +80,7 @@ void CreateFreeElementConnections(List* list, FILE* dot_file);
 ListErrorType InitListLog(const char* filename);
 ListErrorType CloseListLog(const char* filename);
 
-const char* VerifyResultToString(VerifyResult result);
+const char*  VerifyResultToString(VerifyResult result);
 VerifyResult DetectCycle(List* list);
 VerifyResult VerifyList(List* list);
 

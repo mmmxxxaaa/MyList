@@ -402,10 +402,13 @@ ListErrorType ListDump(List* list, const char* filename)
     system(command);
 
     char folder_name[kMaxLengthOfFilename] = {};
-    snprintf(folder_name, sizeof(folder_name), "%s/%s_dump", kGeneralFolderNameForLogs, filename);
+    snprintf(folder_name, sizeof(folder_name), "%s_dump", filename);
+
+    char folder_path[kMaxLengthOfFilename] = {};
+    snprintf(folder_path, sizeof(folder_path), "%s/%s_dump", kGeneralFolderNameForLogs, filename);
 
     // char command[kMaxSystemCommandLength] = {};
-    snprintf(command, sizeof(command), "mkdir -p %s", folder_name);
+    snprintf(command, sizeof(command), "mkdir -p %s", folder_path);
     system(command);
 
     char htm_filename[kMaxLengthOfFilename] = {};
@@ -415,18 +418,18 @@ ListErrorType ListDump(List* list, const char* filename)
     if (!htm_file)
         return LIST_ERROR_OPENING_FILE;
 
-    ListErrorType result = ListDumpToHtm(list, htm_file, folder_name);
+    ListErrorType result = ListDumpToHtm(list, htm_file, folder_path, folder_name);
 
     fclose(htm_file);
 
     return result;
 }
 
-ListErrorType ListDumpToHtm(List* list, FILE* htm_file, const char* folder_name)
+ListErrorType ListDumpToHtm(List* list, FILE* htm_file, const char* folder_path, const char* folder_name)
 {
     assert(list);
     assert(htm_file);
-    assert(folder_name);
+    assert(folder_path);
 
     time_t now = time(NULL);
 
@@ -434,7 +437,7 @@ ListErrorType ListDumpToHtm(List* list, FILE* htm_file, const char* folder_name)
 
     WriteListInfo(htm_file, list);
 
-    GenerateGraphVisualization(list, htm_file, folder_name, now);
+    GenerateGraphVisualization(list, htm_file, folder_path, folder_name, now);
 
     WriteElementsInTable(htm_file, list);
 
@@ -513,32 +516,35 @@ const char* GetElementStatus(List* list, int index)
 }
 
 //==========================================DOT=====================================================
-ListErrorType GenerateGraphVisualization(List* list, FILE* htm_file, const char* folder_name, time_t now)
+ListErrorType GenerateGraphVisualization(List* list, FILE* htm_file, const char* folder_path, const char* folder_name, time_t now)
 {
     assert(list);
     assert(htm_file);
     assert(folder_name);
 
     static int n_of_pictures = 0;
-    char temp_dot[kMaxLengthOfFilename] = {};
-    char temp_svg[kMaxLengthOfFilename] = {};
+    char temp_dot_global_path[kMaxLengthOfFilename] = {};
+    char temp_svg_global_path[kMaxLengthOfFilename] = {};
+    snprintf(temp_dot_global_path, sizeof(temp_dot_global_path), "%s/temp_%d%ld.dot", folder_path, n_of_pictures, now);
+    snprintf(temp_svg_global_path, sizeof(temp_svg_global_path), "%s/temp_%d%ld.svg", folder_path, n_of_pictures, now);
 
-    snprintf(temp_dot, sizeof(temp_dot), "%s/temp_%d%ld.dot",folder_name, n_of_pictures, now);
-    snprintf(temp_svg, sizeof(temp_svg), "%s/temp_%d%ld.svg",folder_name, n_of_pictures, now);
+    char temp_svg_local_path[kMaxLengthOfFilename] = {};
+    snprintf(temp_svg_local_path, sizeof(temp_svg_local_path), "%s/temp_%d%ld.svg", folder_name, n_of_pictures, now);
+
     n_of_pictures++;
 
-    ListErrorType dot_result = GenerateDotFile(list, temp_dot);
+    ListErrorType dot_result = GenerateDotFile(list, temp_dot_global_path);
     if (dot_result != LIST_ERROR_NO)
         return dot_result;
 
     char command[kMaxSystemCommandLength] = {};
-    snprintf(command, sizeof(command), "dot -Tsvg %s -o %s", temp_dot, temp_svg);
+    snprintf(command, sizeof(command), "dot -Tsvg %s -o %s", temp_dot_global_path, temp_svg_global_path);
     int result = system(command);
 
     if (result == 0)
     {
         fprintf(htm_file, "<div style='text-align:center;'>\n");
-        fprintf(htm_file, "<img src='%s' style='max-width:100%%; border:1px solid #ddd;'>\n", temp_svg);
+        fprintf(htm_file, "<img src='%s' style='max-width:100%%; border:1px solid #ddd;'>\n", temp_svg_local_path);
         fprintf(htm_file, "</div>\n");
     }
     else
@@ -546,7 +552,7 @@ ListErrorType GenerateGraphVisualization(List* list, FILE* htm_file, const char*
         fprintf(htm_file, "<p style='color:red;'>Error generating SVG graph</p>\n");
     }
 
-    remove(temp_dot);
+    remove(temp_dot_global_path);
     // remove(temp_svg);
 
     return LIST_ERROR_NO;
@@ -851,4 +857,3 @@ VerifyResult VerifyList(List* list)
 
     return VERIFY_SUCCESS;
 }
-
