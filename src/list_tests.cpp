@@ -230,7 +230,98 @@ void TestDumpWithCycleInList()
     CloseListLog(folder_name);
     ListDtor(&list);
 }
+//FIXME посмотреть как htm получает картинки именно из папки
+void TestLinearize()
+{
+    List list;
+    ListCtorWithSpecifiedCapacity(&list, 10);
 
+    const char* folder_name = "log_TestLinearize";
+    InitListLog(folder_name);
+
+    ListInsertAfter(&list, 0, 10);
+    ListInsertAfter(&list, 1, 20);
+    ListInsertAfter(&list, 2, 30);
+    ListDeleteAt(&list, 2); // создаем дырку
+    ListDump(&list, folder_name);
+
+    // ща элементы разбросаны
+    ListLinearize(&list);
+    ListDump(&list, folder_name);
+
+    CloseListLog(folder_name);
+    ListDtor(&list);
+    // теперь элементы подряд
+}
+
+void TestReallocDown()
+{
+    List list;
+    ListCtorWithSpecifiedCapacity(&list, 10);
+
+    const char* folder_name = "log_TestReallocDown";
+    InitListLog(folder_name);
+
+    ListInsertAfter(&list, 0, 10);
+    ListInsertAfter(&list, 1, 20);
+    ListInsertAfter(&list, 2, 30);
+    ListInsertAfter(&list, 3, 40);
+    ListDeleteAt   (&list, 3);
+    ListDump(&list, folder_name);
+
+    // ща свободно 5 справа от максимального занятого
+    ListReallocDown(&list, 6);
+    ListDump(&list, folder_name);
+    // ща свободно 1 справа от максимального занятого
+    CloseListLog(folder_name);
+    ListDtor(&list);
+}
+
+void TestListReallocDownAsPossibleAsYouCan()
+{
+    List list;
+    ListCtorWithSpecifiedCapacity(&list, 10);
+
+    const char* folder_name = "log_TestReallocDownAsPossibleAsYouCan";
+    InitListLog(folder_name);
+
+    ListInsertAfter(&list, 0, 10);
+    ListInsertAfter(&list, 1, 20);
+    ListInsertAfter(&list, 2, 30);
+    ListInsertAfter(&list, 3, 40);
+    ListDeleteAt   (&list, 3);
+    ListDump(&list, folder_name);
+
+    // ща свободно 5 справа от максимального занятого
+    ListReallocDownAsPossibleAsYouCan(&list);
+    ListDump(&list, folder_name);
+    // ща свободно 0 справа от максимального занятого
+    CloseListLog(folder_name);
+    ListDtor(&list);
+}
+
+void TestListShrinkToFit()
+{
+    List list;
+    ListCtorWithSpecifiedCapacity(&list, 10);
+
+    const char* folder_name = "log_TestListShrinkToFit";
+    InitListLog(folder_name);
+
+    ListInsertAfter(&list, 0, 10);
+    ListInsertAfter(&list, 1, 20);
+    ListInsertAfter(&list, 2, 30);
+    ListInsertAfter(&list, 3, 40);
+    ListDeleteAt   (&list, 3);
+    ListDump(&list, folder_name);
+
+    // ща свободно 5 справа от максимального занятого
+    ListShrinkToFit(&list);
+    ListDump(&list, folder_name);
+    // ща свободно 0 справа от максимального занятого
+    CloseListLog(folder_name);
+    ListDtor(&list);
+}
 
 void AllTests()
 {
@@ -244,6 +335,10 @@ void AllTests()
     TestDumpWithBeautifulErrorPrevVisualization();
     TestDumpWithBeautifulErrorNextVisualization();
     TestDumpWithCycleInList();
+    TestLinearize();
+    TestReallocDown();
+    TestListShrinkToFit();
+    TestListReallocDownAsPossibleAsYouCan();
 }
 
 //FIXME добавить вручную испорченные дампы и проверить его верификатором и задампить

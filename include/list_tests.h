@@ -11,6 +11,10 @@ void TestReuseAfterDelete();
 void TestDumpWithBeautifulErrorPrevVisualization();
 void TestDumpWithBeautifulErrorNextVisualization();
 void TestDumpWithCycleInList();
+void TestLinearize();
+void TestReallocDown();
+void TestListReallocDownAsPossibleAsYouCan();
+void TestListShrinkToFit();
 
 void AllTests();
 

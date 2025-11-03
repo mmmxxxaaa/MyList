@@ -47,13 +47,32 @@ ListErrorType ListCtorWithSpecifiedCapacity(List* ptr_list_struct, ssize_t capac
         ptr_list_struct->array[i].prev = -1;
     }
 
-    ptr_list_struct->size = 0;
-    ptr_list_struct->free = 1;
+    ptr_list_struct->size           = 0;
+    ptr_list_struct->free           = 1;
 
     return LIST_ERROR_NO;
 }
 
-ListErrorType ListRealloc(List* list, ssize_t new_capacity)
+ssize_t FindMaxUsedIndex(List* list)
+{
+    if (list == NULL || list->size == 0)
+        return 0; // только фиктивный элемент
+
+    ssize_t max_index = 0; // начинаем с фиктивного элемента
+    ssize_t current = list->array[kFictiveElementIndex].next;
+
+    // идем по цепочке next всех используемых элементов
+    while (current != kFictiveElementIndex)
+    {
+        if (current > max_index)
+            max_index = current;
+        current = list->array[current].next;
+    }
+
+    return max_index;
+}
+
+ListErrorType ListReallocUp(List* list, ssize_t new_capacity)
 {
     if (list == NULL)
         return LIST_NULL_POINTER;
@@ -93,13 +112,138 @@ ListErrorType ListRealloc(List* list, ssize_t new_capacity)
     return LIST_ERROR_NO;
 }
 
+ListErrorType ListReallocDown(List* list, ssize_t new_capacity)
+{
+    if (list == NULL)
+        return LIST_NULL_POINTER;
+
+    if (new_capacity >= list->capacity)
+        return LIST_WRONG_SPECIFIED_CAPACITY;
+
+    ssize_t max_used_index = FindMaxUsedIndex(list);
+    if (new_capacity <= max_used_index)
+        return LIST_WRONG_SPECIFIED_CAPACITY;
+
+    ElementInList* new_array = (ElementInList*) calloc(new_capacity, sizeof(ElementInList));
+    if (new_array == NULL)
+        return LIST_ALLOCATION_FAILED;
+
+    for (ssize_t i = 0; i < new_capacity; i++)
+        new_array[i] = list->array[i];
+
+    // если последний элемент был использован, его next должен указывать на фиктивный
+    if (new_array[new_capacity - 1].prev != -1)
+        new_array[new_capacity - 1].next = kFictiveElementIndex;
+
+//FIXME
+    ssize_t first_free = -1;
+    ssize_t last_free  = -1;
+
+    for (ssize_t i = 1; i < new_capacity; i++)
+    {
+        if (new_array[i].prev == -1) // элемент свободен
+        {
+            if (first_free == -1)
+            {
+                first_free = i;
+                last_free = i;
+            }
+            else
+            {
+                new_array[last_free].next = i;
+                last_free = i;
+            }
+        }
+    }
+
+    if (last_free != -1)
+        new_array[last_free].next = kFictiveElementIndex;
+
+    list->free = (first_free == -1) ? kFictiveElementIndex : first_free;
+
+    free(list->array);
+    list->array = new_array;
+    list->capacity = new_capacity;
+
+    return LIST_ERROR_NO;
+}
+
+ListErrorType ListReallocDownAsPossibleAsYouCan(List* list)
+{
+    if (list == NULL)
+        return LIST_NULL_POINTER;
+
+    ssize_t max_used_index = FindMaxUsedIndex(list);
+    ssize_t new_capacity   = max_used_index + 1;
+
+    ElementInList* new_array = (ElementInList*) calloc(new_capacity, sizeof(ElementInList));
+    if (new_array == NULL)
+        return LIST_ALLOCATION_FAILED;
+
+    for (ssize_t i = 0; i < new_capacity; i++)
+        new_array[i] = list->array[i];
+
+    // если последний элемент был использован, его next должен указывать на фиктивный (тут всегда так будет)
+    // if (new_array[new_capacity - 1].prev != -1)
+        new_array[new_capacity - 1].next = kFictiveElementIndex;
+
+//FIXME
+    ssize_t first_free = -1;
+    ssize_t last_free  = -1;
+
+    for (ssize_t i = 1; i < new_capacity; i++)
+    {
+        if (new_array[i].prev == -1) // элемент свободен
+        {
+            if (first_free == -1)
+            {
+                first_free = i;
+                last_free = i;
+            }
+            else
+            {
+                new_array[last_free].next = i;
+                last_free = i;
+            }
+        }
+    }
+
+    if (last_free != -1)
+        new_array[last_free].next = kFictiveElementIndex;
+
+    list->free = (first_free == -1) ? kFictiveElementIndex : first_free;
+
+    free(list->array);
+    list->array = new_array;
+    list->capacity = new_capacity;
+
+    return LIST_ERROR_NO;
+}
+
+ListErrorType ListShrinkToFit(List* list)
+{
+    if (list == NULL)
+        return LIST_NULL_POINTER;
+
+    ListErrorType lin_result = ListLinearize(list);
+    if (lin_result != LIST_ERROR_NO)
+        return lin_result;
+
+    ssize_t new_capacity = list->size + 2; //если нужно даже без одного свободного, то +2 меняем на +1 и усе
+
+    if (new_capacity >= list->capacity)
+        return LIST_ERROR_NO;
+
+    return ListReallocDown(list, new_capacity);
+}
+
 ListErrorType ListDtor(List* ptr_list_struct)
 {
     assert(ptr_list_struct);
 
-    ptr_list_struct->capacity = 0;
-    ptr_list_struct->size     = 0;
-    ptr_list_struct->free     = 0;
+    ptr_list_struct->capacity       = 0;
+    ptr_list_struct->size           = 0;
+    ptr_list_struct->free           = 0;
 
     FREE_AND_NULL(ptr_list_struct->array);
 
@@ -119,7 +263,7 @@ ListErrorType ListInsertAfter(List* list, ssize_t target_index, DataType value)
 
     if (list->free == 0)
     {
-        ListErrorType realloc_result = ListRealloc(list, list->capacity * kCapacityIncreaseCoefficient);
+        ListErrorType realloc_result = ListReallocUp(list, list->capacity * kCapacityIncreaseCoefficient);
         if (realloc_result != LIST_ERROR_NO)
             return realloc_result;
     }
@@ -136,6 +280,7 @@ ListErrorType ListInsertAfter(List* list, ssize_t target_index, DataType value)
     list->array[list->array[new_index].next].prev = new_index;
 
     list->size += 1;
+
     return LIST_ERROR_NO;
 }
 
@@ -185,6 +330,54 @@ ListErrorType ListDeleteAt(List* list, ssize_t index)
     return LIST_ERROR_NO;
 }
 
+ListErrorType ListLinearize(List* list)
+{
+    if (list == NULL)
+        return LIST_NULL_POINTER;
+
+    if (list->size == 1)
+        return LIST_ERROR_NO;
+
+    ElementInList* temp_array = (ElementInList*) calloc(list->capacity, sizeof(ElementInList));
+    if (temp_array == NULL)
+        return LIST_ALLOCATION_FAILED;
+
+    temp_array[kFictiveElementIndex]      =  list->array[kFictiveElementIndex];
+    temp_array[kFictiveElementIndex].next = (list->size > 0) ? 1 : 0;  // голова будет на индексе 1
+    temp_array[kFictiveElementIndex].prev = (list->size > 0) ? list->size : 0; // хвост будет на последнем занятом индексе
+
+    ssize_t current_index = list->array[kFictiveElementIndex].next;
+    ssize_t new_index     = 1;
+
+    while (current_index != 0 && new_index <= list->size) //FIXME
+    {
+        temp_array[new_index] = list->array[current_index];
+
+        temp_array[new_index].prev = (new_index == 1)          ? kFictiveElementIndex : (new_index - 1);
+        temp_array[new_index].next = (new_index == list->size) ? kFictiveElementIndex : (new_index + 1);
+
+        current_index = list->array[current_index].next;
+        new_index++;
+    }
+
+    for (ssize_t i = list->size + 1; i < list->capacity; i++)
+    {
+        temp_array[i].data = kPoison;
+        temp_array[i].next = (i == list->capacity - 1) ? 0 : i + 1; //FIXME глянуть все нолики в проге, не должны ли они быть kFictiveElementIndex
+        temp_array[i].prev = -1;
+    }
+
+    if (list->size + 1 < list->capacity)
+        list->free = list->size + 1;
+    else
+        list->free = 0;
+
+    free(list->array);
+    list->array = temp_array;
+
+    return LIST_ERROR_NO;
+}
+
 ssize_t GetIndexOfHead(List* list)
 {
     assert(list);
@@ -223,9 +416,8 @@ ListErrorType ListDump(List* list, const char* filename)
     fclose(htm_file);
 
     return result;
-    //FIXME где-то потерял fprintf(dot_file, "\n");
 }
-
+//FIXME предварительно создать папку logs
 ListErrorType ListDumpToHtm(List* list, FILE* htm_file, const char* folder_name)
 {
     assert(list);
@@ -257,8 +449,8 @@ void WriteDumpHeader(FILE* htm_file, time_t now)
 
 void WriteListInfo(FILE* htm_file, List* list)
 {
-    assert(htm_file)
-    assert(list)
+    assert(htm_file);
+    assert(list);
 
     // Базовая инфа
     fprintf(htm_file, "<div style='margin-bottom:15px;'>\n"); //margin -- внешний отступ, padding -- внутренний
@@ -391,7 +583,7 @@ ListErrorType GenerateDotFile(List* list, const char* filename)
 void CreateDotNodes(List* list, FILE* dot_file)
 {
     assert(list);
-    assert(dor_file);
+    assert(dot_file);
 
     for (int i = 0; i < list->capacity; i++)
     {
