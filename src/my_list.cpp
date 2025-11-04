@@ -18,7 +18,7 @@ int IsElementFree(List* list, ssize_t index)
         if (free_idx == index)
             return 1;
 
-        free_idx = list->array[free_idx].next;
+        free_idx = GetIndexOfNext(list, free_idx);
     }
     return 0;
 }
@@ -59,14 +59,14 @@ ssize_t FindMaxUsedIndex(List* list)
         return 0; // только фиктивный элемент
 
     ssize_t max_index = 0; // начинаем с фиктивного элемента
-    ssize_t current = list->array[kFictiveElementIndex].next;
+    ssize_t current = GetIndexOfNext(list, kFictiveElementIndex);
 
     // идем по цепочке next всех используемых элементов
     while (current != kFictiveElementIndex)
     {
         if (current > max_index)
             max_index = current;
-        current = list->array[current].next;
+        current = GetIndexOfNext(list, current);
     }
 
     return max_index;
@@ -102,8 +102,8 @@ ListErrorType ListReallocUp(List* list, ssize_t new_capacity)
     {
         // находим последний элемент в текущем списке свободных
         ssize_t last_free = list->free;
-        while (list->array[last_free].next != kFictiveElementIndex) //FIXME новое поле, которое хранит индекс последнего free, и тут к нему обращаться и не будет цикла
-            last_free = list->array[last_free].next;
+        while (GetIndexOfNext(list, last_free) != kFictiveElementIndex) //FIXME новое поле, которое хранит индекс последнего free, и тут к нему обращаться и не будет цикла
+            last_free = GetIndexOfNext(list, last_free);
         // связываем последний свободный с первым новым
         list->array[last_free].next = old_capacity;
     }
@@ -269,15 +269,15 @@ ListErrorType ListInsertAfter(List* list, ssize_t target_index, DataType value)
     }
 
     ssize_t new_index = list->free;
-    list->free = list->array[new_index].next;
+    list->free = GetIndexOfNext(list, new_index);
 
     list->array[new_index].data = value;
 
     list->array[new_index].prev = target_index;
-    list->array[new_index].next = list->array[target_index].next;
+    list->array[new_index].next = GetIndexOfNext(list, target_index);
 
     list->array[target_index].next = new_index;
-    list->array[list->array[new_index].next].prev = new_index;
+    list->array[GetIndexOfNext(list, new_index)].prev = new_index;
 
     list->size += 1;
 
@@ -294,7 +294,7 @@ ListErrorType ListInsertAfterTail(List* list, DataType value)
     if (list == NULL)
         return LIST_NULL_POINTER;
 
-    ssize_t tail_index = list->array[kFictiveElementIndex].prev;
+    ssize_t tail_index = GetIndexOfTail(list);
 
     return ListInsertAfter(list, tail_index, value);
 }
@@ -315,14 +315,15 @@ ListErrorType ListDeleteAt(List* list, ssize_t index)
     // if (IsElementFree(list, index))  // нужно ли проверять? нельзя удалить уже свободный элемент
     //     return LIST_INVALID_INDEX;
 
-    ElementInList* element = &list->array[index];
+    ssize_t prev_index = GetIndexOfPrev(list, index);
+    ssize_t next_index = GetIndexOfNext(list, index);
 
-    list->array[element->prev].next = element->next;
-    list->array[element->next].prev = element->prev;
+    list->array[prev_index].next = next_index;
+    list->array[next_index].prev = prev_index;
 
-    element->data = kPoison;
-    element->prev = -1;
-    element->next = list->free;
+    list->array[index].data = kPoison;
+    list->array[index].prev = -1;
+    list->array[index].next = list->free;
 
     list->free  = index;
     list->size -= 1;
@@ -346,7 +347,7 @@ ListErrorType ListLinearize(List* list)
     temp_array[kFictiveElementIndex].next = (list->size > 0) ? 1 : 0;  // голова будет на индексе 1
     temp_array[kFictiveElementIndex].prev = (list->size > 0) ? list->size : 0; // хвост будет на последнем занятом индексе
 
-    ssize_t current_index = list->array[kFictiveElementIndex].next;
+    ssize_t current_index = GetIndexOfHead(list);
     ssize_t new_index     = 1;
 
     while (current_index != 0 && new_index <= list->size) //FIXME
@@ -356,7 +357,7 @@ ListErrorType ListLinearize(List* list)
         temp_array[new_index].prev = (new_index == 1)          ? kFictiveElementIndex : (new_index - 1);
         temp_array[new_index].next = (new_index == list->size) ? kFictiveElementIndex : (new_index + 1);
 
-        current_index = list->array[current_index].next;
+        current_index = GetIndexOfNext(list, current_index);
         new_index++;
     }
 
@@ -376,6 +377,22 @@ ListErrorType ListLinearize(List* list)
     list->array = temp_array;
 
     return LIST_ERROR_NO;
+}
+
+ssize_t GetIndexOfNext(List* list, ssize_t index)
+{
+    if (list == 0)
+        return -1;
+
+    return list->array[index].next;
+}
+
+ssize_t GetIndexOfPrev(List* list, ssize_t index)
+{
+    if (list == 0)
+        return -2;
+
+    return list->array[index].prev;
 }
 
 ssize_t GetIndexOfHead(List* list)
@@ -757,8 +774,6 @@ const char* VerifyResultToString(VerifyResult result)
     switch (result)
     {
         case VERIFY_SUCCESS:                  return "Success";
-        case VERIFY_FAKE_ELEMENT_NEXT_ERROR:  return "Fake element next pointer error";
-        case VERIFY_FAKE_ELEMENT_PREV_ERROR:  return "Fake element prev pointer error";
         case VERIFY_TAIL_NEXT_ERROR:          return "Tail next pointer error";
         case VERIFY_HEAD_PREV_ERROR:          return "Head prev pointer error";
         case VERIFY_CAPACITY_EXCEEDED:        return "Capacity exceeded during traversal";

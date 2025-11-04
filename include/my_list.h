@@ -51,13 +51,16 @@ ListErrorType ListDeleteAt        (List* list, ssize_t index);
 ListErrorType ListInsertBeforeHead(List* list, DataType value); //для программиста же неочевидно, что надо писать ListInsertAfter(&list, 0, value)
 ListErrorType ListInsertAfterTail (List* list, DataType value);
 ListErrorType ListLinearize       (List* list);
+ListErrorType ListInsertTheFirstElement(List* list, DataType value); //для программиста же неочевидно, что надо писать ListInsertAfter(&list, 0, value)
+
 //FIXME next  prev говорят индексы ИСПОЛЬЗОВАТЬ эти функции в реализации других функций
 //FIXME линеаризация: она не реаллоцирует память, она просто работает с индексами
 //FIXME     выделить еще один массив, туда всё из старого напихать подряд, освободить старое, заполняю все, что надо
 
-ListErrorType ListInsertTheFirstElement(List* list, DataType value); //для программиста же неочевидно, что надо писать ListInsertAfter(&list, 0, value)
-ssize_t       GetIndexOfHead(List* list);
-ssize_t       GetIndexOfTail(List* list);
+ssize_t GetIndexOfNext(List* list, ssize_t index);
+ssize_t GetIndexOfPrev(List* list, ssize_t index);
+ssize_t GetIndexOfHead(List* list);
+ssize_t GetIndexOfTail(List* list);
 
 //====================DUMP=========================================
 ListErrorType ListDump(List* ptr_list_struct, const char* filename);
