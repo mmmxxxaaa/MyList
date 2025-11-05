@@ -2,7 +2,7 @@
 
 #include <assert.h>
 #include <stdio.h>
-//FIXME табами выровнять логи
+
 #include "my_list.h"
 
 //Вставка первого элемента в пустой список
@@ -200,7 +200,9 @@ void TestDumpWithBeautifulErrorNextVisualization()
     ListInsertAfter(&list, 6, 70);
     ListDump(&list, folder_name);
     list.array[4].next = 690;
-    ListDump(&list, folder_name);
+
+    if (VerifyList(&list) != VERIFY_SUCCESS)
+        ListDump(&list, folder_name);
 
     CloseListLog(folder_name);
     ListDtor(&list);
@@ -225,7 +227,8 @@ void TestDumpWithCycleInList()
 
     list.array[6].next = 2;
 
-    ListDump(&list, folder_name);
+    if (VerifyList(&list) != VERIFY_SUCCESS)
+        ListDump(&list, folder_name);
 
     CloseListLog(folder_name);
     ListDtor(&list);

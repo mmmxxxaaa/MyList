@@ -26,8 +26,7 @@ typedef struct {
     ssize_t capacity;
     ssize_t size;
 } List;
-//ХУЙНЯ хранить наибольший индекс USED и при реаллокации вниз освобождать все те индексы, которые правее used
-        //тогда DeleteAt будет O(n), поэтому лучше находить этот max_used_index в функции реаллокации вниз
+
 const DataType    kPoison                      = 525252;
 const int         kMaxLengthOfFilename         = 256;
 const int         kMaxSystemCommandLength      = 512;
@@ -52,10 +51,6 @@ ListErrorType ListInsertBeforeHead(List* list, DataType value); //для про�
 ListErrorType ListInsertAfterTail (List* list, DataType value);
 ListErrorType ListLinearize       (List* list);
 ListErrorType ListInsertTheFirstElement(List* list, DataType value); //для программиста же неочевидно, что надо писать ListInsertAfter(&list, 0, value)
-
-//FIXME next  prev говорят индексы ИСПОЛЬЗОВАТЬ эти функции в реализации других функций
-//FIXME линеаризация: она не реаллоцирует память, она просто работает с индексами
-//FIXME     выделить еще один массив, туда всё из старого напихать подряд, освободить старое, заполняю все, что надо
 
 ssize_t GetIndexOfNext(List* list, ssize_t index);
 ssize_t GetIndexOfPrev(List* list, ssize_t index);

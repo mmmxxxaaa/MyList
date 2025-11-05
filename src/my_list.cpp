@@ -102,7 +102,7 @@ ListErrorType ListReallocUp(List* list, ssize_t new_capacity)
     {
         // находим последний элемент в текущем списке свободных
         ssize_t last_free = list->free;
-        while (GetIndexOfNext(list, last_free) != kFictiveElementIndex) //FIXME новое поле, которое хранит индекс последнего free, и тут к нему обращаться и не будет цикла
+        while (GetIndexOfNext(list, last_free) != kFictiveElementIndex)
             last_free = GetIndexOfNext(list, last_free);
         // связываем последний свободный с первым новым
         list->array[last_free].next = old_capacity;
@@ -135,7 +135,6 @@ ListErrorType ListReallocDown(List* list, ssize_t new_capacity)
     if (new_array[new_capacity - 1].prev != -1)
         new_array[new_capacity - 1].next = kFictiveElementIndex;
 
-//FIXME
     ssize_t first_free = -1;
     ssize_t last_free  = -1;
 
@@ -185,9 +184,8 @@ ListErrorType ListReallocDownAsPossibleAsYouCan(List* list)
 
     // если последний элемент был использован, его next должен указывать на фиктивный (тут всегда так будет)
     // if (new_array[new_capacity - 1].prev != -1)
-        new_array[new_capacity - 1].next = kFictiveElementIndex;
+    new_array[new_capacity - 1].next = kFictiveElementIndex;
 
-//FIXME
     ssize_t first_free = -1;
     ssize_t last_free  = -1;
 
@@ -243,7 +241,7 @@ ListErrorType ListDtor(List* ptr_list_struct)
 
     ptr_list_struct->capacity       = 0;
     ptr_list_struct->size           = 0;
-    ptr_list_struct->free           = 0;
+    ptr_list_struct->free           = kFictiveElementIndex;
 
     FREE_AND_NULL(ptr_list_struct->array);
 
@@ -257,9 +255,6 @@ ListErrorType ListInsertAfter(List* list, ssize_t target_index, DataType value)
 
     if (target_index < 0 || target_index >= list->capacity)
         return LIST_INVALID_INDEX;
-
-    // if (IsElementFree(list, target_index) && target_index != 0) // FIXME цикл есть или нет?
-    //     return LIST_INVALID_INDEX;
 
     if (list->free == 0)
     {
@@ -350,7 +345,7 @@ ListErrorType ListLinearize(List* list)
     ssize_t current_index = GetIndexOfHead(list);
     ssize_t new_index     = 1;
 
-    while (current_index != 0 && new_index <= list->size) //FIXME
+    while (current_index != 0 && new_index <= list->size)
     {
         temp_array[new_index] = list->array[current_index];
 
@@ -364,14 +359,14 @@ ListErrorType ListLinearize(List* list)
     for (ssize_t i = list->size + 1; i < list->capacity; i++)
     {
         temp_array[i].data = kPoison;
-        temp_array[i].next = (i == list->capacity - 1) ? 0 : i + 1; //FIXME глянуть все нолики в проге, не должны ли они быть kFictiveElementIndex
+        temp_array[i].next = (i == list->capacity - 1) ? kFictiveElementIndex : i + 1;
         temp_array[i].prev = -1;
     }
 
     if (list->size + 1 < list->capacity)
         list->free = list->size + 1;
     else
-        list->free = 0;
+        list->free = kFictiveElementIndex;
 
     free(list->array);
     list->array = temp_array;
@@ -498,7 +493,7 @@ void WriteElementsInTable(FILE* htm_file, List* list)
     assert(htm_file);
     assert(list);
 
-    // таблица элементов //FIXME
+    // таблица элементов
     fprintf(htm_file, "<table border='1' style='border-collapse:collapse; width:100%%; margin-top:15px;'>\n"); //collapse -- убирает двойные линии в ячйеках
     fprintf(htm_file, "<tr><th>Index</th><th>Data</th><th>Next</th><th>Prev</th><th>Status</th></tr>\n");
 
@@ -646,7 +641,7 @@ void CreateDotNodes(List* list, FILE* dot_file)
         }
 
         fprintf(dot_file, "    element%d [label=\"{%s|{idx: %d|data: %d|next: %ld|prev: %ld}}\", style=filled, fillcolor=%s, color=black];\n", //Внешние фигурные скобки создают основную таблицу символ | между элементами разделяет строки таблицы; Внутренние фигурные скобки создают вложенные таблицы/ячейки Символ | внутри внутренних скобок разделяет столбцы внутри строки
-            i, label, i, element->data, element->next, element->prev, color);
+                i, label, i, element->data, element->next, element->prev, color);
         }
 
     fprintf(dot_file, "\n");
@@ -679,7 +674,7 @@ void CreateCommonElementConnections(List* list, FILE* dot_file)
 
         if (next >= 0 && next < list->capacity)
         {
-            if (list->array[next].prev == i) //чекаем двустороннюю связь //FIXME
+            if (list->array[next].prev == i) //чекаем двустороннюю связь
                 fprintf(dot_file, "    element%ld -> element%ld [color=black, constraint=false, arrowhead=normal, arrowtail=normal, dir=both];\n", i, next);
             else
             {
@@ -727,7 +722,7 @@ ListErrorType InitListLog(const char* filename)
     assert(filename);
 
     char htm_filename[kMaxLengthOfFilename] = {};
-    snprintf(htm_filename, sizeof(htm_filename), "%s/%s.htm", kGeneralFolderNameForLogs, filename); //FIXME вынести logs в отдельную строковую константу
+    snprintf(htm_filename, sizeof(htm_filename), "%s/%s.htm", kGeneralFolderNameForLogs, filename);
 
     FILE* htm_file = fopen(htm_filename, "w");
     if (!htm_file)
@@ -852,7 +847,6 @@ VerifyResult VerifyList(List* list)
             if (next < 0 || next >= list->capacity)
                 return VERIFY_INVALID_INDEX;
 
-            // чекаем двустороннюю связь //FIXME создать функцию которая бежит до конца массива по next, пока не встретит ошибку. Если встретит ее, то обрабатывает и бежит дальше. Возвращает индекс элемента, где что-то не так. В верификаторе если возвращаемый индекс != 0, то в верификаторе возвращаю ошибку, а в дампе вывожу
             if (list->array[next].prev != current)
                 return VERIFY_BIDIRECTIONAL_LINK_ERROR;
 
